@@ -36,7 +36,7 @@
      replaces them with the real glyph's measured ink bounds. */
   .menu {
     --stem-x: 0.062em;  --stem-y: 0.26em;  --stem-w: 0.136em;  --stem-h: 0.54em;
-    --dot-x: 0.054em;   --dot-y: 0.035em;  --dot-d: 0.152em;
+    --dot-x: var(--stem-x);  --dot-y: 0.043em;  --dot-d: var(--stem-w);
     --icon: 0.52;  /* icon size as a fraction of stem width */
     position: absolute;
     inset: 0;
@@ -330,13 +330,15 @@
     // that won't resolve `ui-rounded` on canvas), keep the CSS defaults.
     if (m && Math.abs(m.advance - domAdvance) / domAdvance < .03) {
       const base = probe.getBoundingClientRect().top - slot.getBoundingClientRect().top;
-      const d = Math.max(m.dot.w, m.dot.h);
+      // The dot matches the stem's width (some faces, like Nunito, draw a
+      // larger tittle) and sits in the same column, centred on the glyph's dot.
+      const d = m.stem.w;
       const set = (k, v) => menu.style.setProperty(k, v.toFixed(2) + 'px');
       set('--stem-x', m.stem.x);
       set('--stem-y', base + m.stem.y);
       set('--stem-w', m.stem.w);
       set('--stem-h', m.stem.h);
-      set('--dot-x', m.dot.x + (m.dot.w - d) / 2);
+      set('--dot-x', m.stem.x);
       set('--dot-y', base + m.dot.y + (m.dot.h - d) / 2);
       set('--dot-d', d);
     }
