@@ -1,0 +1,60 @@
+/*
+  SF Pro Rounded isn't licensed for web embedding, so it's reached three ways:
+  - Safari (macOS / iOS): the `ui-rounded` generic resolves to SF Pro Rounded.
+  - Chrome / Firefox on a Mac with SF Pro Rounded installed: local() below.
+  - Everyone else: Nunito, the closest open rounded sans.
+*/
+@font-face {
+  font-family: "SF Rounded Local";
+  font-weight: 700;
+  src: local("SF Pro Rounded Bold"), local("SFProRounded-Bold");
+}
+
+:root {
+  --ink: #d1d1d6;          /* Apple systemGray4 */
+  --paper: #ffffff;
+  --tracking: 0.05em;      /* ~5% looser than the font's default spacing */
+  --rounded: ui-rounded, "SF Rounded Local", "SF Pro Rounded", "Nunito", system-ui, sans-serif;
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--paper);
+}
+
+body {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  overflow: hidden;
+  font-family: var(--rounded);
+  font-weight: 700;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Under construction ---------- */
+
+.placeholder {
+  margin: 0;
+  padding: 0 16px;
+  font-size: min(9vw, 12vh);
+  letter-spacing: var(--tracking);
+  line-height: 1;
+  text-align: center;
+  color: var(--ink);
+  text-decoration: none;
+}
