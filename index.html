@@ -61,28 +61,28 @@
        two tiny colour fringes (cool at 8–9 o'clock, warm at 4–5 o'clock).
        Positions are sized off the glass's width so the pill and dot match. */
     --rim-light:
-      radial-gradient(calc(var(--gw) * .16) calc(var(--gw) * .28) at 0% calc(100% - var(--gw) * .45), rgba(170,185,255,.45), rgba(170,185,255,0)),
-      radial-gradient(calc(var(--gw) * .28) calc(var(--gw) * .16) at 84% calc(100% - var(--gw) * .1), rgba(255,190,150,.6), rgba(255,190,150,0)),
+      radial-gradient(calc(var(--gw) * .2) calc(var(--gw) * .45) at 0% calc(100% - var(--gw) * .5), rgba(170,185,255,.45), rgba(170,185,255,0)),
+      radial-gradient(calc(var(--gw) * .42) calc(var(--gw) * .24) at 82% calc(100% - var(--gw) * .12), rgba(255,200,140,.55), rgba(255,200,140,0)),
       radial-gradient(calc(var(--gw) * .7) calc(var(--gw) * .55) at 72% 0%, #fff 25%, rgba(255,255,255,0)),
       linear-gradient(rgba(255,255,255,.9), rgba(255,255,255,.55) calc(var(--gw) * .6), rgba(255,255,255,.55) calc(100% - var(--gw) * .6), rgba(255,255,255,.15));
     position: absolute;
     isolation: isolate;
     border-radius: 999px;
-    /* Clear glass as a lens: white at the centre, cooling to a light grey
-       over the outer edge. Done as an inset shadow so the band is the same
-       depth all the way round (the pill reads as a tube, caps included). */
-    background: rgba(255,255,255,.95);
+    /* Clear glass: mostly see-through, lifted only slightly over the page. */
+    background: rgba(255,255,255,.55);
     -webkit-backdrop-filter: blur(14px) saturate(1.8);
     backdrop-filter: blur(14px) saturate(1.8);
     box-shadow:
-      /* Lens thickness: a faint neutral darkening over the outer edge. */
-      inset 0 0 calc(var(--gw) * .26) calc(var(--gw) * .02) rgba(75,85,105,.22),
+      /* Recessed: a soft shadow cast inward from under the top lip, deepest
+         at 12 o'clock and fading by 10 and 2. */
+      inset 0 calc(var(--gw) * .11) calc(var(--gw) * .12) calc(var(--gw) * -.05) rgba(40,45,60,.16),
+      /* Lens thickness: only a whisper of edge tint, so the body stays clear. */
       inset 0 0 calc(var(--gw) * .05) rgba(75,85,105,.05),
       /* A hair of grey outside the bright rim. */
-      0 0 0 1px rgba(0,0,0,.055),
-      /* Tight contact shadow plus a short, light ambient one. */
-      0 calc(var(--gw) * .05) calc(var(--gw) * .1) rgba(0,0,0,.085),
-      0 calc(var(--gw) * .1) calc(var(--gw) * .28) rgba(0,0,0,.08);
+      0 0 0 1px rgba(0,0,0,.045),
+      /* Faint, wide ambient shadow; no hard contact shadow. */
+      0 calc(var(--gw) * .03) calc(var(--gw) * .12) rgba(0,0,0,.045),
+      0 calc(var(--gw) * .08) calc(var(--gw) * .45) rgba(0,0,0,.05);
     transition: transform .45s cubic-bezier(.34, 1.56, .64, 1);
     will-change: transform;
   }
@@ -102,14 +102,12 @@
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
     pointer-events: none;
   }
-  /* Inner contour: a soft highlight arc a few px inside the rim, across the
-     top (10 to 2 o'clock), where the lens refracts the light back. */
+  /* Inner contour: a very faint line following the shape just inside the
+     rim, as the thick edge of the lens refracts the page behind it. */
   .glint {
-    inset: calc(var(--gw) * .08);
-    padding: calc(var(--gw) * .04);
-    background: radial-gradient(calc(var(--gw) * .6) calc(var(--gw) * .4) at 50% 0%, #fff 35%, rgba(255,255,255,0));
-    filter: blur(calc(var(--gw) * .025));
-    opacity: .35;
+    inset: calc(var(--gw) * .07);
+    background: rgba(60,65,80,.035);
+    filter: blur(.5px);
   }
 
   /* Sheen (::after): a faint diagonal band of light that slides across on
