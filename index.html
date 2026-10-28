@@ -52,55 +52,109 @@
 
   /* ---------- Liquid glass ---------- */
 
+  /* Animatable angles for the rim's dark streaks and the sheen sweep. */
+  @property --rim-angle { syntax: "<angle>"; inherits: false; initial-value: -75deg; }
+  @property --sheen-angle { syntax: "<angle>"; inherits: false; initial-value: -45deg; }
+
   .glass {
+    /* Bright glints sit where the glass curves hardest (the rounded ends),
+       sized off the glass's width so the pill and the dot match: a hot arc
+       over the top-right shoulder, a white bounce along the bottom with an
+       iridescent fringe (lavender left, warm gold right). */
+    --glint:
+      radial-gradient(calc(var(--gw) * .55) calc(var(--gw) * .42) at 72% calc(var(--gw) * .06), #fff 30%, rgba(255,255,255,0)),
+      radial-gradient(calc(var(--gw) * .4) calc(var(--gw) * .3) at 50% calc(100% - var(--gw) * .02), #fff 20%, rgba(255,255,255,0)),
+      radial-gradient(calc(var(--gw) * .36) calc(var(--gw) * .32) at 18% calc(100% - var(--gw) * .2), rgba(214,196,255,.95), rgba(214,196,255,0)),
+      radial-gradient(calc(var(--gw) * .36) calc(var(--gw) * .32) at 84% calc(100% - var(--gw) * .18), rgba(255,226,170,.95), rgba(255,226,170,0));
+    --rim: max(1px, calc(var(--gw) * .035));
     position: absolute;
     isolation: isolate;
     border-radius: 999px;
+    /* The body darkens slightly toward its edge, like the thick rim of a lens,
+       and gathers a caustic along the bottom. */
     background:
-      radial-gradient(120% 60% at var(--mx, 50%) var(--my, 0%), rgba(255,255,255,.85), rgba(255,255,255,0) 70%),
-      linear-gradient(180deg, rgba(255,255,255,.78) 0%, rgba(246,246,248,.62) 100%);
+      radial-gradient(120% 60% at var(--mx, 50%) var(--my, 0%), rgba(255,255,255,.9), rgba(255,255,255,0) 70%),
+      radial-gradient(90% calc(var(--gw) * .5) at 50% 100%, rgba(255,255,255,.75), rgba(255,255,255,0)),
+      radial-gradient(closest-side, rgba(255,255,255,.75) 50%, rgba(232,232,237,.6) 82%, rgba(205,205,214,.6) 100%),
+      linear-gradient(-75deg, rgba(250,250,252,.6), rgba(255,255,255,.8), rgba(244,244,248,.6));
     -webkit-backdrop-filter: blur(14px) saturate(1.8);
     backdrop-filter: blur(14px) saturate(1.8);
     box-shadow:
-      inset 0 1px 0.5px rgba(255,255,255,.95),
-      inset 0 -1px 1px rgba(0,0,0,.045),
-      inset 0 0 calc(var(--stem-w) * .18) rgba(0,0,0,.035),
-      0 0 0 0.5px rgba(0,0,0,.06),
-      0 calc(var(--stem-w) * .04) calc(var(--stem-w) * .1) rgba(0,0,0,.07),
-      0 calc(var(--stem-w) * .16) calc(var(--stem-w) * .5) rgba(0,0,0,.13);
+      /* Thickness: shade under the top lip, light pooling at the bottom. */
+      inset 0 calc(var(--gw) * .05) calc(var(--gw) * .05) rgba(0,0,0,.05),
+      inset 0 calc(var(--gw) * -.05) calc(var(--gw) * .05) rgba(255,255,255,.6),
+      inset 0 0 calc(var(--gw) * .04) calc(var(--gw) * .1) rgba(255,255,255,.25),
+      /* Specular hairline along the top-left inner edge. */
+      inset 1px 1px 0 rgba(255,255,255,.75),
+      0 0 0 0.5px rgba(0,0,0,.1),
+      0 calc(var(--gw) * .1) calc(var(--gw) * .05) calc(var(--gw) * -.05) rgba(0,0,0,.18),
+      0 calc(var(--gw) * .16) calc(var(--gw) * .5) rgba(0,0,0,.12);
     transition: transform .45s cubic-bezier(.34, 1.56, .64, 1), box-shadow .3s ease;
     will-change: transform;
   }
-  /* Refractive rim: bright where light enters (top-left) and exits (bottom-right). */
-  .glass::before {
+
+  /* The rim (::before): bright glints over a half-white ring cut by two
+     opposing dark streaks. The streaks are what make the edge read as glass
+     on a white page, and they swing round on hover as if the light moved. */
+  .glass::before,
+  .glint {
     content: "";
     position: absolute;
     inset: 0;
     z-index: 2;
     border-radius: inherit;
-    padding: max(1px, calc(var(--stem-w) * .03));
-    background: linear-gradient(150deg,
-      rgba(255,255,255,1) 0%, rgba(255,255,255,.25) 28%,
-      rgba(200,200,210,.18) 50%,
-      rgba(255,255,255,.25) 72%, rgba(255,255,255,.95) 100%);
+    padding: var(--rim);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor;
     mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
     pointer-events: none;
   }
-  /* Caustic: light gathered along the lower inside edge. */
+  .glass::before {
+    background:
+      var(--glint),
+      conic-gradient(from var(--rim-angle) at 50% 50%,
+        rgba(0,0,0,.4), rgba(0,0,0,0) 5% 40%,
+        rgba(0,0,0,.4) 50%, rgba(0,0,0,0) 60% 95%,
+        rgba(0,0,0,.4)),
+      linear-gradient(rgba(255,255,255,.5), rgba(255,255,255,.5));
+    transition: --rim-angle .5s ease;
+  }
+  .glass:hover::before { --rim-angle: -125deg; }
+  .glass:active::before { --rim-angle: -75deg; }
+  /* A wider, blurred copy of the glints that blooms inward off the hot spots. */
+  .glint {
+    padding: calc(var(--rim) * 2.4);
+    background: var(--glint);
+    filter: blur(calc(var(--rim) * 1.1));
+    opacity: .9;
+  }
+
+  /* Sheen (::after): a soft diagonal band of light that slides across on
+     hover and tilts on press. */
   .glass::after {
     content: "";
     position: absolute;
     inset: 0;
     z-index: 1;
     border-radius: inherit;
-    background: radial-gradient(90% 40% at 50% 100%, rgba(255,255,255,.7), rgba(255,255,255,0) 70%);
+    background: linear-gradient(var(--sheen-angle),
+      rgba(255,255,255,0) 0%, rgba(255,255,255,.55) 40% 50%, rgba(255,255,255,0) 55%)
+      0% 50% / 200% 200% no-repeat;
+    mix-blend-mode: screen;
     pointer-events: none;
+    transition: background-position .5s cubic-bezier(.25, 1, .5, 1), --sheen-angle .5s cubic-bezier(.25, 1, .5, 1);
   }
+  .glass:hover::after { background-position: 25% 50%; }
+  .glass:active::after { background-position: 50% 15%; --sheen-angle: -15deg; }
+
+  @media (hover: none) {
+    .glass:hover::before, .glass:active::before { --rim-angle: -75deg; }
+  }
+
   .glass:active { transform: scale(1.06); }
 
   .stem {
+    --gw: var(--stem-w);
     left: var(--stem-x);
     top: var(--stem-y);
     width: var(--stem-w);
@@ -110,6 +164,7 @@
     padding: calc(var(--stem-w) * .06) 0;
   }
   .dot {
+    --gw: var(--dot-d);
     left: var(--dot-x);
     top: var(--dot-y);
     width: var(--dot-d);
@@ -168,7 +223,7 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .glass, .item, .lens, .js .menu.ready { transition: none; }
+    .glass, .glass::before, .glass::after, .item, .lens, .js .menu.ready { transition: none; }
     .glass:active, .item:active { transform: none; }
   }
 </style>
@@ -211,12 +266,12 @@
   <h1 class="word" aria-label="Eric.">
     <span aria-hidden="true">Er</span><span class="i"><span class="i-glyph" aria-hidden="true">i</span><span class="i-baseline"></span>
       <nav class="menu" aria-label="Site">
-        <div class="glass dot">
+        <div class="glass dot"><span class="glint" aria-hidden="true"></span>
           <a class="item" href="about/" aria-label="About" title="About">
             <svg aria-hidden="true"><use href="#sf-person-crop-circle"/></svg>
           </a>
         </div>
-        <div class="glass stem">
+        <div class="glass stem"><span class="glint" aria-hidden="true"></span>
           <span class="lens" aria-hidden="true"></span>
           <a class="item" href="./" aria-label="Home" title="Home" aria-current="page">
             <svg aria-hidden="true"><use href="#sf-house"/></svg>
