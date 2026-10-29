@@ -62,12 +62,13 @@
   const item = r => `<a class="item" href="${urlOf(r)}" data-route="${r.key}" aria-label="${r.label}" title="${r.label}">` +
     `<svg aria-hidden="true"><use href="#sf-${r.icon}"/></svg></a>`;
   const letter = c => `<span class="ch">${c}</span>`;
-  // Line breaks for stacking the word on phones; which set is used depends on
-  // PHONE_STACK below (see .brk in app.css).
+  // The word is two rows ("Er", "ic.") that sit on one line except when stacked
+  // on phones; .brk adds the extra breaks for the four-row stack. Both depend
+  // on PHONE_STACK (see app.css).
   const brk = sets => `<span class="brk ${sets}"></span>`;
 
   document.body.insertAdjacentHTML('afterbegin', SYMBOLS + `
-<div class="stage" aria-hidden="true"><div class="word">${letter('E')}${brk('b4')}${letter('r')}${brk('b2 b4')}<span class="i"><span class="i-glyph">i</span><span class="i-baseline"></span></span>${brk('b4')}${letter('c')}${letter('.')}</div></div>
+<div class="stage" aria-hidden="true"><div class="word"><span class="row">${letter('E')}${brk('b4')}${letter('r')}</span><span class="row"><span class="i"><span class="i-glyph">i</span><span class="i-baseline"></span></span>${brk('b4')}${letter('c')}${letter('.')}</span></div></div>
 <nav class="dock" aria-label="Site">
   <div class="glass dot">${item(ROUTES[0])}</div>
   <div class="glass stem"><span class="lens" aria-hidden="true"></span>${ROUTES.slice(1).map(item).join('')}</div>

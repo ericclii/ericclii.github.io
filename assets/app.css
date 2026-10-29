@@ -28,14 +28,24 @@
   -webkit-user-select: none;
 }
 
-/* Stacking the word on phones (PHONE_STACK in app.js). A .brk is an empty
-   block that ends a line when its set is active. */
+/* Stacking the word on phones (PHONE_STACK in app.js). The word is two
+   .rows, side by side by default; a .brk is an extra line break for the
+   four-row stack. */
 .brk { display: none; }
+.brk::before { content: "\A"; white-space: pre; }
 @media (max-width: 600px) and (orientation: portrait) {
-  [data-stack="2"] .word { font-size: min(72vw, 40svh); line-height: .95; }
-  [data-stack="2"] .brk.b2 { display: block; }
+  [data-stack="2"] .word,
+  [data-stack="4"] .word { width: calc(100vw - 40px); }
+  [data-stack="2"] .row,
+  [data-stack="4"] .row { display: block; }
+  /* Two staggered rows: "Er" set from the left edge, "ic." from the right,
+     each about 70% of the width, which brings the "i" (and the menu fitted
+     to it) in toward the middle of the screen. */
+  [data-stack="2"] .word { font-size: min(62vw, 36svh); line-height: .95; }
+  [data-stack="2"] .row:first-child { text-align: left; }
+  [data-stack="2"] .row:last-child { text-align: right; }
   [data-stack="4"] .word { font-size: min(96vw, 24svh); line-height: .86; }
-  [data-stack="4"] .brk.b4 { display: block; }
+  [data-stack="4"] .brk { display: inline; }
 }
 
 /* Each letter floats off on its own, like a balloon. */
