@@ -72,6 +72,7 @@
 <nav class="dock" aria-label="Site">
   <div class="glass dot">${item(ROUTES[0])}</div>
   <div class="glass stem"><span class="lens" aria-hidden="true"></span>${ROUTES.slice(1).map(item).join('')}</div>
+  <svg class="neck" aria-hidden="true"><path class="neck-fill"/><path class="neck-edge"/></svg>
 </nav>`);
 
   const html = document.documentElement;
@@ -84,6 +85,8 @@
   const dot = dock.querySelector('.dot');
   const stem = dock.querySelector('.stem');
   const lens = dock.querySelector('.lens');
+  const neck = dock.querySelector('.neck');
+  const [neckFill, neckEdge] = neck.querySelectorAll('path');
   const items = [...dock.querySelectorAll('.item')];
   const stemItems = [...stem.querySelectorAll('.item')];
 
@@ -356,55 +359,117 @@
     }
     const flight = dock.animate(frames, { duration: DUR, fill: 'both' });
 
-    // Merge: the pill swallows the dot (their circles coincide at the top),
-    // then, as one piece, shrinks into a small capsule for the fall and
-    // springs back out to full size on the climb. It stays one piece until
-    // the top of the overshoot; from there a damped spring lets the dot rise
-    // out of the top while the pill's top settles back to its place.
-    const M = H + T;  // the merged pill's full height
+    // The dot and pill behave like two beads of liquid. At the start the
+    // pill's top reaches up and the two join through a neck that thickens
+    // until they're one pill; it shrinks into a small capsule for the fall
+    // and grows back on the climb. At the top of the overshoot they part:
+    // the pill's top pulls away, the dot is dragged and stretched, the neck
+    // between them thins and pinches off, and both spring back into shape.
+    const M = H + T;            // the merged pill's full height
+    const r = D / 2;
+    const JOIN = 170;           // ms for the two to fuse
+    const SPLIT = 520;          // ms from the top of the overshoot to rest
+    const PINCH = .42;          // fraction of SPLIT at which the neck snaps
+    const peakMs = peak * DUR;
+    const total = peakMs + SPLIT;
+    const at_ = ms => Math.min(1, Math.max(0, ms / total));
+    const inOut = x => x * x * (3 - 2 * x);
+
+    // Damped springs, as functions of t from 0 to 1: `settleFrom` decays from
+    // 1 to 0 with a soft rebound; used for the recoil after the pinch.
+    const zeta = .45, omega = 12, wd = omega * Math.sqrt(1 - zeta * zeta);
+    const settleFrom = t => Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + zeta / Math.sqrt(1 - zeta * zeta) * Math.sin(wd * t));
+
+    // Shape over time (ms): the pill's top, the dot's offset and stretch.
+    const STRETCH = 1.32;       // how far past its rest the pill's top pulls
+    function shape(ms) {
+      if (ms <= JOIN) {
+        const q = inOut(ms / JOIN);
+        return { top: T * (1 - q), dotY: T * .12 * q, sx: 1, sy: 1, phase: 'join', q };
+      }
+      if (ms < peakMs) return { top: 0, dotY: 0, sx: 1, sy: 1, phase: 'merged' };
+      const τ = Math.min(1, (ms - peakMs) / SPLIT);
+      if (τ < PINCH) {
+        const q = inOut(τ / PINCH);
+        return { top: T * STRETCH * q, dotY: T * .14 * q, sx: 1 - .07 * q, sy: 1 + .1 * q, phase: 'stretch', q };
+      }
+      const t = (τ - PINCH) / (1 - PINCH), k = settleFrom(t);
+      return { top: T + T * (STRETCH - 1) * k, dotY: T * .14 * k, sx: 1 + .07 * k, sy: 1 - .1 * k, phase: 'apart' };
+    }
+
+    // The neck: the waisted bridge between the dot's lower edge and the
+    // pill's top cap, painted the colour of the glass so the two read as one
+    // body of liquid.
+    function drawNeck(ms) {
+      const { top, dotY, phase, q } = shape(ms);
+      const join = phase === 'join', stretch = phase === 'stretch';
+      if (!(join && q > .1) && !stretch) { neck.style.opacity = 0; return; }
+      // How far apart the two are, 0 (fused) to 1 (about to snap / just met).
+      const pull = join ? 1 - q : q;
+      const a = r * (.95 - .5 * pull);                 // half-width where it meets each bead
+      const waist = a * (1 - .88 * pull * pull);        // half-width at its narrowest
+      const cx = r, h = Math.sqrt(r * r - a * a);
+      const y1 = r + dotY + h, y2 = top + r - h;        // where it meets the dot, the pill
+      if (y2 - y1 < .5) { neck.style.opacity = 0; return; }
+      const ym = (y1 + y2) / 2, c = 2 * waist - a;      // control point for that waist
+      const left = `M ${cx - a} ${y1} Q ${cx - c} ${ym} ${cx - a} ${y2}`;
+      const right = `M ${cx + a} ${y2} Q ${cx + c} ${ym} ${cx + a} ${y1}`;
+      neckFill.setAttribute('d', `${left} L ${cx + a} ${y2} Q ${cx + c} ${ym} ${cx + a} ${y1} Z`);
+      neckEdge.setAttribute('d', `${left} ${right}`);
+      neck.style.opacity = 1;
+    }
+
     const pill = (top, height, scale = 1) =>
       ({ top: px(top), height: px(height), left: px(D * (1 - scale) / 2), width: px(D * scale) });
-    // Damped spring over the rest of the trip (τ from 0 to 1): `step` eases
-    // from 0 to 1 with a soft overshoot; `kick` rises from 0, peaks at 1 and
-    // decays back to 0 with a fading wobble.
-    const zeta = .55, omega = 11, wd = omega * Math.sqrt(1 - zeta * zeta);
-    const step = τ => 1 - Math.exp(-zeta * omega * τ) * (Math.cos(wd * τ) + zeta / Math.sqrt(1 - zeta * zeta) * Math.sin(wd * τ));
-    const kickRaw = τ => Math.exp(-zeta * omega * τ) * Math.sin(wd * τ);
-    const kickPeak = kickRaw(Math.atan(wd / (zeta * omega)) / wd);
-    const kick = τ => kickRaw(τ) / kickPeak;
-    const after = (n, fn) => Array.from({ length: n }, (_, k) => {
-      const τ = (k + 1) / n;
-      return { ...fn(τ), offset: peak + (1 - peak) * τ };
+    const sample = (from, to, n, fn) => Array.from({ length: n + 1 }, (_, k) => {
+      const ms = from + (to - from) * k / n;
+      return { ...fn(ms), offset: at_(ms) };
     });
 
     const merge = stem.animate([
-      { ...pill(T, H), easing: 'cubic-bezier(.5, 0, .3, 1.2)' },
-      { ...pill(0, M), offset: .12, easing: 'cubic-bezier(.45, 0, .35, 1)' },
-      { ...pill(M * .26, M * .48, .78), offset: .26 },
-      { ...pill(M * .26, M * .48, .78), offset: peak - .26, easing: 'cubic-bezier(.3, 0, .2, 1.2)' },
-      { ...pill(0, M), offset: peak - .08 },
-      { ...pill(0, M), offset: peak },
-      ...after(20, τ => { const top = T * step(τ); return pill(top, M - top); }),
-    ], { duration: DUR, fill: 'both' });
+      ...sample(0, JOIN, 10, ms => { const { top } = shape(ms); return pill(top, M - top); }),
+      { ...pill(0, M), offset: at_(JOIN + 120), easing: 'cubic-bezier(.45, 0, .35, 1)' },
+      { ...pill(M * .26, M * .48, .78), offset: at_(JOIN + 300) },
+      { ...pill(M * .26, M * .48, .78), offset: at_(peakMs - 300), easing: 'cubic-bezier(.3, 0, .2, 1.2)' },
+      { ...pill(0, M), offset: at_(peakMs - 90) },
+      ...sample(peakMs, total, 30, ms => { const { top } = shape(ms); return pill(top, M - top); }),
+    ], { duration: total, fill: 'both' });
+
+    const dotFrame = ms => {
+      const { dotY, sx, sy } = shape(ms);
+      return { transform: `translateY(${px(dotY)}) scale(${sx.toFixed(3)}, ${sy.toFixed(3)})` };
+    };
     const bud = dot.animate([
-      { opacity: 1, transform: 'translateY(0)', easing: 'cubic-bezier(.5, 0, .3, 1)' },
-      { opacity: 1, transform: `translateY(${px(T * .2)})`, offset: .09 },
-      { opacity: 0, transform: 'translateY(0)', offset: .12 },
-      { opacity: 0, transform: 'translateY(0)', offset: peak },
-      ...after(20, τ => ({ opacity: Math.min(1, τ * 6), transform: `translateY(${px(-shoot * kick(τ))})` })),
-    ], { duration: DUR, fill: 'both' });
+      // As it's absorbed, the dot fades into the pill so the two read as one.
+      ...sample(0, JOIN, 10, ms => ({ ...dotFrame(ms), opacity: 1 - inOut(Math.min(1, Math.max(0, (ms / JOIN - .45) / .5))) })),
+      { transform: 'none', opacity: 0, offset: at_(JOIN + 10) },
+      { transform: 'none', opacity: 0, offset: at_(peakMs - 1) },
+      ...sample(peakMs, total, 30, ms => ({ ...dotFrame(ms), opacity: 1 })),
+    ], { duration: total, fill: 'both' });
 
     // Icons and the lens duck out while the glass is in motion, and fade back
-    // as it splits.
+    // once the two have parted.
+    const back = peakMs + SPLIT * PINCH;
     const hide = [...items, lens].map(el => el.animate([
       { opacity: 1, scale: 1 },
-      { opacity: 0, scale: .7, offset: .1 },
-      { opacity: 0, scale: .7, offset: peak },
-      ...after(12, τ => ({ opacity: Math.min(1, τ * 2.2), scale: .7 + .3 * step(τ) })),
-    ], { duration: DUR, fill: 'both' }));
+      { opacity: 0, scale: .7, offset: at_(110) },
+      { opacity: 0, scale: .7, offset: at_(back) },
+      { opacity: 1, scale: 1.04, offset: at_(back + 160) },
+      { opacity: 1, scale: 1 },
+    ], { duration: total, fill: 'both' }));
+
+    // Redraw the neck every frame from the same clock as the glass.
+    let drawing = true;
+    (function frame() {
+      if (!drawing) return;
+      drawNeck(merge.currentTime ?? 0);
+      requestAnimationFrame(frame);
+    })();
 
     const all = [flight, merge, bud, ...hide];
     return Promise.all(all.map(settle)).then(() => {
+      drawing = false;
+      neck.style.opacity = 0;
       place(to);
       all.forEach(a => a.cancel());
     });
