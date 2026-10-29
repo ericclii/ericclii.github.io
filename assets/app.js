@@ -415,18 +415,6 @@
     });
   }
 
-  // A small pulse of the menu, in place, when moving between two pages.
-  function pulseDock() {
-    const p = G.docked;
-    const t = sc => `translate(${px(p.x)}, ${px(p.y)}) scale(${sc})`;
-    const a = dock.animate([
-      { transform: t(1) },
-      { transform: t(1.03), offset: .35 },
-      { transform: t(1) },
-    ], { duration: 480, easing: 'cubic-bezier(.45, 0, .55, 1)' });
-    return settle(a);
-  }
-
   /* ---------- Page transitions ---------- */
 
   // A page can be many screens long, but only the screenful in view should
@@ -486,7 +474,7 @@
     const timing = { duration: 520 + 90 * steps, easing: 'cubic-bezier(.65, 0, .25, 1)', fill: 'both' };
     const out = ghost.animate([{ transform: 'none' }, { transform: `translateY(${-dir * 100}vh)` }], timing);
     const inn = content.animate([{ transform: `translateY(${dir * 100}vh)` }, { transform: 'none' }], timing);
-    await Promise.all([settle(out), settle(inn), pulseDock()]);
+    await Promise.all([settle(out), settle(inn)]);
     ghost.remove();
     uncrop(content);
     inn.cancel();
