@@ -212,22 +212,48 @@
     html.classList.toggle('is-page', current.key !== 'home');
   }
 
+  // Slide the lens to an icon. If it's hidden, it appears there directly
+  // rather than sliding over from wherever it was last.
   function moveLens(a) {
-    lens.style.setProperty('--lens-y', px(a.offsetTop + (a.offsetHeight - lens.offsetHeight) / 2));
+    const y = px(a.offsetTop + (a.offsetHeight - lens.offsetHeight) / 2);
+    if (lens.classList.contains('is-hidden')) {
+      lens.style.transition = 'opacity .25s ease';
+      lens.style.setProperty('--lens-y', y);
+      void lens.offsetWidth;  // apply the position before the transition returns
+      lens.style.removeProperty('transition');
+    } else {
+      lens.style.setProperty('--lens-y', y);
+    }
     lens.classList.remove('is-hidden');
   }
+  const hideLens = () => lens.classList.add('is-hidden');
 
-  // Rest on the current page; the landing page lives in the dot, so hide it.
+  // Where the pointer is, so the lens can follow it even when the menu moves
+  // under a still pointer (hover events only fire when the pointer moves).
+  let pointer = null;
+  addEventListener('pointermove', e => { pointer = { x: e.clientX, y: e.clientY }; }, { passive: true });
+  document.documentElement.addEventListener('pointerleave', () => { pointer = null; });
+  const hoveredItem = () => {
+    const el = pointer && document.elementFromPoint(pointer.x, pointer.y);
+    return el && el.closest ? el.closest('.stem .item') : null;
+  };
+
+  // The lens rests on the icon under the pointer if there is one, otherwise
+  // on the current page (hidden on the landing page, which lives in the dot).
   function restLens() {
-    const a = stemItems.find(x => x.dataset.route === current.key);
-    if (a) moveLens(a); else lens.classList.add('is-hidden');
+    const a = hoveredItem() || stemItems.find(x => x.dataset.route === current.key);
+    if (a) moveLens(a); else hideLens();
   }
 
+  // Hover moves it, but not mid-transition, when the menu itself is moving.
   stemItems.forEach(a => {
-    a.addEventListener('pointerenter', () => moveLens(a));
-    a.addEventListener('focus', () => moveLens(a));
+    a.addEventListener('pointerenter', () => { if (!busy) moveLens(a); });
+    a.addEventListener('focus', () => { if (!busy) moveLens(a); });
   });
-  stem.addEventListener('pointerleave', restLens);
+  stem.addEventListener('pointerleave', e => {
+    pointer = { x: e.clientX, y: e.clientY };  // leave fires before the move
+    if (!busy) restLens();
+  });
 
   /* ---------- Animation helpers ---------- */
 
@@ -373,7 +399,7 @@
     ], { duration: 1250, fill: 'both' });
 
     // Icons and the lens duck out while the glass is in motion.
-    const hide = [...items, lens].map(el => el.animate([
+    const hide = items.map(el => el.animate([
       { opacity: 1, scale: 1 },
       { opacity: 0, scale: .6, offset: .12 },
       { opacity: 0, scale: .6, offset: .7 },
@@ -395,8 +421,7 @@
     const t = (y, sx = 1, sy = 1) => `translate(${px(p.x)}, ${px(y)}) scale(${sx}, ${sy})`;
     const a = dock.animate([
       { transform: t(p.y) },
-      { transform: t(p.y + dir * 12, .97, 1.03), offset: .3 },
-      { transform: t(p.y - dir * 4, 1.02, .98), offset: .65 },
+      { transform: t(p.y + dir * 4), offset: .4 },
       { transform: t(p.y) },
     ], { duration: 600, easing: 'cubic-bezier(.45, 0, .55, 1)' });
     return settle(a);
@@ -493,7 +518,10 @@
       if (push) history.pushState({ key: route.key }, '', urlOf(route));
       document.title = page.title;
       markCurrent();
-      restLens();
+      // The lens sits out flights; between pages it goes to the new page.
+      const flies = from.key === 'home' || route.key === 'home';
+      if (flies) hideLens();
+      else moveLens(stemItems.find(x => x.dataset.route === route.key));
 
       if (from.key === 'home') await landingToPage(page);
       else if (route.key === 'home') await pageToLanding(page);
@@ -501,7 +529,9 @@
         const step = ROUTES.indexOf(route) - ROUTES.indexOf(from);
         await pageToPage(page, Math.sign(step), Math.abs(step));
       }
-    } catch {
+    } catch (err) {
+      // Anything going wrong mid-transition falls back to a plain page load.
+      console.error(err);
       location.href = urlOf(route);
       return;
     } finally {
