@@ -2,16 +2,26 @@
   SF Pro Rounded isn't licensed for web embedding, so it's reached three ways:
   - Safari (macOS / iOS): the `ui-rounded` generic resolves to SF Pro Rounded.
   - Chrome / Firefox on a Mac with SF Pro Rounded installed: local() below.
-  - Everyone else: Nunito ExtraBold, the closest open rounded sans. It's
-    served here at weight 700 because Nunito's Bold reads lighter than SF Pro
+  - Everyone else: Nunito, the closest open rounded sans. Its ExtraBold is
+    served as the bold weight because Nunito's Bold reads lighter than SF Pro
     Rounded Bold. (Nunito: SIL Open Font License, see OFL-Nunito.txt.)
 */
+@font-face {
+  font-family: "SF Rounded Local";
+  font-weight: 400;
+  src: local("SF Pro Rounded Regular"), local("SFProRounded-Regular");
+}
 @font-face {
   font-family: "SF Rounded Local";
   font-weight: 700;
   src: local("SF Pro Rounded Bold"), local("SFProRounded-Bold");
 }
-
+@font-face {
+  font-family: "Nunito Fallback";
+  font-weight: 400;
+  font-display: block;
+  src: url("nunito-regular.woff2") format("woff2");
+}
 @font-face {
   font-family: "Nunito Fallback";
   font-weight: 700;
@@ -20,7 +30,11 @@
 }
 
 :root {
-  --ink: #d1d1d6;          /* Apple systemGray4 */
+  --ink: #d1d1d6;          /* Apple systemGray4: the big word */
+  --text: #3a3a3c;         /* body copy */
+  --strong: #1c1c1e;       /* headings, link text */
+  --mark: #c7c7cc;         /* markdown syntax: # - ** [ ]( ) > */
+  --muted: #8e8e93;        /* link targets, metadata */
   --paper: #ffffff;
   --tracking: 0.05em;      /* ~5% looser than the font's default spacing */
   --rounded: ui-rounded, "SF Rounded Local", "SF Pro Rounded", "Nunito Fallback", system-ui, sans-serif;
@@ -29,22 +43,20 @@
 
 *, *::before, *::after { box-sizing: border-box; }
 
-html, body {
-  margin: 0;
-  height: 100%;
-  background: var(--paper);
-}
+/* Reserve the scrollbar's space everywhere, so moving between the landing
+   page (no scroll) and a long page doesn't shift the layout mid-animation. */
+html { scrollbar-gutter: stable; }
+html.is-home { overflow: hidden; }
 
 body {
-  display: grid;
-  place-items: center;
+  margin: 0;
   min-height: 100svh;
-  overflow: hidden;
+  background: var(--paper);
   font-family: var(--rounded);
-  font-weight: 700;
-  color: var(--ink);
+  color: var(--text);
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
+  text-rendering: optimizeLegibility;
 }
 
 .visually-hidden {
@@ -55,15 +67,72 @@ body {
   white-space: nowrap;
 }
 
-/* ---------- Under construction ---------- */
+/* ---------- Markdown pages ----------
+   Pages read like a rendered .md file: the syntax stays visible, in a light
+   grey, beside the text it formats. */
 
-.placeholder {
-  margin: 0;
-  padding: 0 16px;
-  font-size: min(9vw, 12vh);
-  letter-spacing: var(--tracking);
-  line-height: 1;
-  text-align: center;
-  color: var(--ink);
-  text-decoration: none;
+.md {
+  --side: max(24px, var(--dock-space, 96px));
+  position: relative;
+  z-index: 1;
+  width: min(100%, calc(38rem + 2 * var(--side)));
+  margin: 0 auto;
+  padding: clamp(72px, 16vh, 160px) var(--side) 28vh;
 }
+/* On narrow screens only the right side needs to clear the menu. */
+@media (max-width: 720px) {
+  .md { padding-left: 24px; width: 100%; }
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  font-weight: 400;
+  overflow-wrap: break-word;
+}
+.md:empty { padding: 0; }
+
+.md h1, .md h2, .md h3 {
+  color: var(--strong);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+.md h1 { font-size: 2.1rem; margin: 0 0 1em; }
+.md h2 { font-size: 1.4rem; margin: 2.4em 0 .7em; }
+.md h3 { font-size: 1.08rem; margin: 1.9em 0 .3em; }
+.md h1 + h2 { margin-top: 0; }
+
+.md h1::before { content: "# "; content: "# " / ""; }
+.md h2::before { content: "## "; content: "## " / ""; }
+.md h3::before { content: "### "; content: "### " / ""; }
+.md :is(h1, h2, h3)::before { color: var(--mark); }
+
+.md p { margin: 0 0 1em; }
+.md .meta { color: var(--muted); }
+
+.md strong { color: var(--strong); font-weight: 700; }
+.md strong::before, .md strong::after { content: "**"; content: "**" / ""; color: var(--mark); }
+.md em { font-style: normal; }
+.md em::before, .md em::after { content: "_"; content: "_" / ""; color: var(--mark); }
+
+.md ul { list-style: none; margin: 0 0 1.1em; padding: 0; }
+.md li { position: relative; padding-left: 1.3em; margin: 0 0 .35em; }
+.md li::before { content: "-"; content: "-" / ""; position: absolute; left: 0; color: var(--mark); }
+
+.md blockquote { position: relative; margin: 0 0 1em; padding-left: 1.3em; color: var(--strong); }
+.md blockquote::before { content: ">"; content: ">" / ""; position: absolute; left: 0; color: var(--mark); }
+.md blockquote p { margin: 0; }
+
+.md .rule { margin: 2.4em 0; color: var(--mark); letter-spacing: .1em; }
+
+/* [text](target): the visible target comes from data-target, kept short. */
+.md a { color: var(--strong); text-decoration: none; transition: color .2s ease; }
+.md a::before { content: "["; content: "[" / ""; color: var(--mark); }
+.md a::after {
+  content: "](" attr(data-target) ")";
+  content: "](" attr(data-target) ")" / "";
+  color: var(--mark);
+}
+.md a:hover, .md a:focus-visible { color: #0a84ff; outline: none; }
+.md a:focus-visible { text-decoration: underline; text-underline-offset: .2em; }
+
+/* No-JS fallback navigation. */
+.md-nav { padding: 0 var(--side, 24px) 10vh; max-width: calc(38rem + 48px); margin: 0 auto; }

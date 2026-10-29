@@ -1,16 +1,69 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="is-page">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Projects · Eric.</title>
 <meta name="theme-color" content="#ffffff">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/app.css">
+<script>document.documentElement.classList.add('js')</script>
 </head>
-<body>
-<main>
-  <h1 class="visually-hidden">Projects</h1>
-  <a class="placeholder" href="../" title="Home">Under construction.</a>
+<body data-page="projects">
+<main id="content" class="md">
+<h1>Projects</h1>
+
+<h2>Simpli</h2>
+<p class="meta">iOS · SwiftUI, WebKit · Shipped to TestFlight · 2026</p>
+<p><strong>Problem</strong> Instagram and YouTube are where your friends and subscriptions live. They’re also where Reels and Shorts eat the afternoon. Deleting the app costs you your messages; keeping it costs you hours.</p>
+<blockquote><p>People don’t want less Instagram. They want Instagram without the infinite scroll.</p></blockquote>
+<p><strong>What I did</strong></p>
+<ul>
+  <li>Took over the open-source NoScroll codebase and audited it, fixing outdated Instagram blocking rules, feed scroll jumps, DM reel navigation, and a message bar hidden by the keyboard.</li>
+  <li>Cut scope to one iPhone experience: removed the Android app, Screen Time shielding, sleep mode, and onboarding.</li>
+  <li>Redesigned the interface in SwiftUI with iOS 26 Liquid Glass and added on-device screen-time tracking with a weekly chart.</li>
+  <li>Trimmed the injected blocking engine from 8.0 KB to 4.8 KB. Rules are signature-checked before they run and never touch sign-in pages.</li>
+</ul>
+<p><strong>Result</strong> Shipped to TestFlight with a 40% lighter blocking engine. Reels and Shorts are gone; messages, follows, and posting still work.</p>
+<p><a href="https://github.com/ericclii/Simpli" data-target="github.com/ericclii/Simpli" target="_blank" rel="noopener">Source on GitHub</a></p>
+
+<h2>Toki</h2>
+<p class="meta">Hardware + AI · 1st Overall, BTE × Microsoft AI Hackathon · 2026</p>
+<p><strong>Problem</strong> Kids aged 8–18 spend about 44 hours a week on screens (AACAP). Parents want them outside, but a parent asking can’t compete with an app engineered for attention. Less outdoor time is linked to vitamin D deficiency, myopia, and less unstructured play.</p>
+<blockquote><p>Kids won’t go outside for their parents. They will go outside for something they love.</p></blockquote>
+<p><strong>The product</strong> A Tamagotchi-style pet that literally can’t survive without sunlight. Sensors check the child is really outdoors before any play prompt counts, and an AI model learns their routine to time the next challenge.</p>
+<p><strong>What I did</strong></p>
+<ul>
+  <li>Led problem origination: ran parallel Claude Code research agents across child development and existing products, then picked the problem a physical product could solve most directly.</li>
+  <li>Defined the product thesis and chose the sensor set that verifies “outside” instead of trusting the user.</li>
+  <li>Wired and debugged the circuit (Arduino UNO R4, shared I²C bus for display and IMU) the night before, so the team walked in with working hardware.</li>
+  <li>Scoped the cloud loop: play data syncs to Supabase for the AI to learn from, validated in a stripped-down test build.</li>
+</ul>
+<p><strong>Sensor stack</strong></p>
+<ul>
+  <li>LDR: sunlight</li>
+  <li>IR: presence</li>
+  <li>IMU: movement</li>
+  <li>RTC: time of day</li>
+</ul>
+<p><strong>Result</strong> 1st Overall at the NYU BTE × Microsoft “Age of AI” Hackathon. It won on the problem framing and the business case, not the polish.</p>
+
+<h2>Spotify</h2>
+<p class="meta">Product design concept · Self-initiated</p>
+<p>A before-and-after concept for Spotify’s lyrics screen: the redesign adds shuffle, previous, next, repeat, and a queue button.</p>
+<p><em>Concept board. Not affiliated with Spotify.</em></p>
 </main>
+<noscript>
+  <nav class="md md-nav">
+    <ul>
+      <li><a href="../" data-target="home">Home</a></li>
+      <li><a href="../about/" data-target="about">About</a></li>
+      <li><a href="../projects/" data-target="projects">Projects</a></li>
+      <li><a href="../experience/" data-target="experience">Experience</a></li>
+      <li><a href="../resume/" data-target="resume">Resume</a></li>
+    </ul>
+  </nav>
+</noscript>
+<script src="../assets/app.js"></script>
 </body>
 </html>

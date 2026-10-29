@@ -1,0 +1,208 @@
+/* The landing word and the liquid-glass menu, shared by every page. */
+
+/* ---------- The word ---------- */
+
+.stage {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  display: grid;
+  place-items: center;
+  overflow: clip;
+  pointer-events: none;
+}
+
+.word {
+  margin: 0;
+  /* Oversized: ~58% of a desktop viewport, ~90% of a phone's width. */
+  font-size: min(42vw, 44vh);
+  font-weight: 700;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: var(--tracking);
+  /* Balance the trailing tracking after the period so the word sits centred. */
+  padding-left: var(--tracking);
+  white-space: nowrap;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Each letter floats off on its own, like a balloon. */
+.ch { display: inline-block; will-change: transform; }
+
+/* The "i": a real, invisible glyph keeps the font's exact advance width and
+   baseline; the glass menu is fitted over where its ink would be. */
+.i { position: relative; display: inline-block; }
+.i-glyph { color: transparent; }
+.i-baseline { display: inline-block; width: 0; height: 0; }
+
+/* ---------- The menu ---------- */
+
+/* Geometry is measured from the glyph by app.js; these are only fallbacks. */
+.dock {
+  --stem-w: 48px;
+  --stem-top: 64px;
+  --stem-h: 190px;
+  --icon: 0.52;  /* icon size as a fraction of stem width */
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  width: var(--stem-w);
+  height: calc(var(--stem-top) + var(--stem-h));
+  transform: translate(var(--x, 0px), var(--y, 0px));
+}
+
+/* Hold the menu until it's fitted to the real glyph, then settle in. */
+.js .dock { opacity: 0; scale: .94; }
+.js .dock.ready {
+  opacity: 1;
+  scale: 1;
+  transition: opacity .5s ease, scale .7s cubic-bezier(.34, 1.4, .64, 1);
+}
+
+/* ---------- Liquid glass ---------- */
+
+/* Animatable angle for the sheen sweep. */
+@property --sheen-angle { syntax: "<angle>"; inherits: false; initial-value: -45deg; }
+
+.glass {
+  /* Rim light, after Apple's Liquid Glass references: a single hairline,
+     brightest over the top-right shoulder and fading toward the bottom,
+     with one short spectral streak (gold, rose, violet, aqua) where light
+     disperses along the bottom edge. Sized off the glass's width so the
+     pill and dot match. */
+  --rim-light:
+    linear-gradient(90deg, rgba(255,255,255,0) 36%, rgba(255,200,130,.6) 52%, rgba(255,160,190,.6) 61%,
+      rgba(170,160,255,.6) 70%, rgba(140,225,225,.5) 77%, rgba(255,255,255,0) 89%)
+      50% 100% / 100% calc(var(--gw) * .14) no-repeat,
+    radial-gradient(calc(var(--gw) * .7) calc(var(--gw) * .55) at 72% 0%, #fff 25%, rgba(255,255,255,0)),
+    linear-gradient(rgba(255,255,255,.9), rgba(255,255,255,.55) calc(var(--gw) * .6), rgba(255,255,255,.55) calc(100% - var(--gw) * .6), rgba(255,255,255,.15));
+  --gw: var(--stem-w);
+  position: absolute;
+  left: 0;
+  width: var(--stem-w);
+  isolation: isolate;
+  border-radius: 999px;
+  /* Smoke tint laid over the clear glass. To go back to fully clear glass,
+     set this to transparent. */
+  --glass-tint: rgba(110,115,130,.09);
+  /* Clear glass: mostly see-through, lifted only slightly over the page. */
+  background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(255,255,255,.55);
+  -webkit-backdrop-filter: blur(14px) saturate(1.8);
+  backdrop-filter: blur(14px) saturate(1.8);
+  box-shadow:
+    /* Recessed: a soft shadow cast inward from under the top lip, deepest
+       at 12 o'clock and fading by 10 and 2. */
+    inset 0 calc(var(--gw) * .12) calc(var(--gw) * .18) calc(var(--gw) * -.06) rgba(40,45,60,.13),
+    /* Lens thickness: only a whisper of edge tint, so the body stays clear. */
+    inset 0 0 calc(var(--gw) * .05) rgba(75,85,105,.05),
+    /* A hair of grey outside the bright rim. */
+    0 0 0 1px rgba(0,0,0,.045),
+    /* Faint, wide ambient shadow; no hard contact shadow. */
+    0 calc(var(--gw) * .03) calc(var(--gw) * .12) rgba(0,0,0,.045),
+    0 calc(var(--gw) * .08) calc(var(--gw) * .45) rgba(0,0,0,.05);
+  transition: transform .45s cubic-bezier(.34, 1.56, .64, 1);
+}
+
+/* The rim (::before): one even hairline carrying the rim light. */
+.glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  padding: 1px;
+  background: var(--rim-light);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  pointer-events: none;
+}
+/* Sheen (::after): a faint diagonal band of light that slides across on
+   hover and tilts on press. */
+.glass::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  background: linear-gradient(var(--sheen-angle),
+    rgba(255,255,255,0) 0%, rgba(255,255,255,.3) 40% 50%, rgba(255,255,255,0) 55%)
+    0% 50% / 200% 200% no-repeat;
+  pointer-events: none;
+  transition: background-position .5s cubic-bezier(.25, 1, .5, 1), --sheen-angle .5s cubic-bezier(.25, 1, .5, 1);
+}
+.glass:hover::after { background-position: 25% 50%; }
+.glass:active::after { background-position: 50% 15%; --sheen-angle: -15deg; }
+
+.glass:active { transform: scale(1.06); }
+
+.dot { top: 0; height: var(--stem-w); }
+.stem {
+  top: var(--stem-top);
+  height: var(--stem-h);
+  display: flex;
+  flex-direction: column;
+  padding: calc(var(--stem-w) * .06) 0;
+}
+
+.item {
+  position: relative;
+  z-index: 3;
+  flex: 1;
+  display: grid;
+  place-items: center;
+  color: #3a3a3c;
+  border-radius: 999px;
+  outline: none;
+  transition: color .2s ease, transform .35s cubic-bezier(.34, 1.56, .64, 1);
+}
+.dot .item { position: absolute; inset: 0; }
+.item svg {
+  position: relative;
+  z-index: 1;
+  width: calc(var(--stem-w) * var(--icon));
+  height: calc(var(--stem-w) * var(--icon));
+  overflow: visible;
+}
+.item:active { transform: scale(.9); }
+.item:focus-visible::after {
+  content: "";
+  position: absolute;
+  inset: calc(var(--stem-w) * .08);
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px #0a84ff;
+}
+
+/* Selection lens: a small inner glass bubble that follows the pointer and
+   rests on the current page, like the iOS tab bar. The dot has no room for
+   one to travel to, so its own current state is drawn in place. */
+.lens,
+.dot .item[aria-current="page"]::before {
+  border-radius: 999px;
+  background: rgba(0,0,0,.035);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.35), inset 0 1px 0.5px rgba(255,255,255,.6);
+}
+.lens {
+  position: absolute;
+  z-index: 1;
+  left: calc(var(--stem-w) * .09);
+  right: calc(var(--stem-w) * .09);
+  top: 0;
+  aspect-ratio: 1;
+  transform: translateY(var(--lens-y, 0px));
+  transition: transform .5s cubic-bezier(.34, 1.4, .64, 1), opacity .25s ease;
+  pointer-events: none;
+}
+.lens.is-hidden { opacity: 0; }
+.dot .item[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  inset: calc(var(--stem-w) * .09);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass, .glass::after, .item, .lens, .js .dock.ready { transition: none; }
+  .glass:active, .item:active { transform: none; }
+}

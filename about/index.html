@@ -1,16 +1,34 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="is-page">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>About · Eric.</title>
 <meta name="theme-color" content="#ffffff">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/app.css">
+<script>document.documentElement.classList.add('js')</script>
 </head>
-<body>
-<main>
-  <h1 class="visually-hidden">About</h1>
-  <a class="placeholder" href="../" title="Home">Under construction.</a>
+<body data-page="about">
+<main id="content" class="md">
+<h1>Hi, my name is Eric.</h1>
+<ul>
+  <li><a href="https://linkedin.com/in/liericnyc" data-target="linkedin.com/in/liericnyc" target="_blank" rel="noopener">LinkedIn</a></li>
+  <li><a href="https://x.com/liiericc" data-target="x.com/liiericc" target="_blank" rel="noopener">X</a></li>
+  <li><a href="https://buymeacoffee.com/ericli" data-target="buymeacoffee.com/ericli" target="_blank" rel="noopener">Buy me a coffee</a></li>
+</ul>
 </main>
+<noscript>
+  <nav class="md md-nav">
+    <ul>
+      <li><a href="../" data-target="home">Home</a></li>
+      <li><a href="../about/" data-target="about">About</a></li>
+      <li><a href="../projects/" data-target="projects">Projects</a></li>
+      <li><a href="../experience/" data-target="experience">Experience</a></li>
+      <li><a href="../resume/" data-target="resume">Resume</a></li>
+    </ul>
+  </nav>
+</noscript>
+<script src="../assets/app.js"></script>
 </body>
 </html>

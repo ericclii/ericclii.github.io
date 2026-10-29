@@ -1,16 +1,30 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="is-page">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Resume · Eric.</title>
 <meta name="theme-color" content="#ffffff">
 <link rel="stylesheet" href="../assets/site.css">
+<link rel="stylesheet" href="../assets/app.css">
+<script>document.documentElement.classList.add('js')</script>
 </head>
-<body>
-<main>
-  <h1 class="visually-hidden">Resume</h1>
-  <a class="placeholder" href="../" title="Home">Under construction.</a>
+<body data-page="resume">
+<main id="content" class="md">
+<h1>Resume</h1>
+<p>Under construction.</p>
 </main>
+<noscript>
+  <nav class="md md-nav">
+    <ul>
+      <li><a href="../" data-target="home">Home</a></li>
+      <li><a href="../about/" data-target="about">About</a></li>
+      <li><a href="../projects/" data-target="projects">Projects</a></li>
+      <li><a href="../experience/" data-target="experience">Experience</a></li>
+      <li><a href="../resume/" data-target="resume">Resume</a></li>
+    </ul>
+  </nav>
+</noscript>
+<script src="../assets/app.js"></script>
 </body>
 </html>
