@@ -293,7 +293,8 @@
   }
 
   // A slight dip as each lets go, then a climb that picks up speed, drifting
-  // and turning gently one way. Staggered so they leave one by one.
+  // and turning gently one way. Only lightly staggered, so they rise nearly
+  // together.
   function floatAway() {
     return Promise.all(letters.map((el, i) => {
       const { dx, rot } = away[i];
@@ -303,7 +304,7 @@
         { transform: `translate(${dx * .2}vw, -9vh) rotate(${rot * .25}deg)`, offset: .34 },
         { transform: `translate(${dx * .5}vw, -46vh) rotate(${rot * .55}deg)`, offset: .66 },
         { transform: awayTransform(away[i]) },
-      ], { duration: 1150, delay: [0, 80, 30, 120][i] + rand(0, 50), easing: 'cubic-bezier(.4, 0, .65, .6)' });
+      ], { duration: 1150, delay: [0, 30, 10, 45][i] + rand(0, 15), easing: 'cubic-bezier(.4, 0, .65, .6)' });
     }));
   }
 
