@@ -67,8 +67,11 @@
     position: absolute;
     isolation: isolate;
     border-radius: 999px;
+    /* Smoke tint laid over the clear glass. To go back to fully clear glass,
+       set this to transparent. */
+    --glass-tint: rgba(110,115,130,.09);
     /* Clear glass: mostly see-through, lifted only slightly over the page. */
-    background: rgba(255,255,255,.55);
+    background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(255,255,255,.55);
     -webkit-backdrop-filter: blur(14px) saturate(1.8);
     backdrop-filter: blur(14px) saturate(1.8);
     box-shadow:
