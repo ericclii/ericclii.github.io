@@ -201,8 +201,3 @@
   position: absolute;
   inset: calc(var(--stem-w) * .09);
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .glass, .glass::after, .item, .lens, .js .dock.ready { transition: none; }
-  .glass:active, .item:active { transform: none; }
-}

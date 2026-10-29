@@ -78,7 +78,6 @@
   const lens = dock.querySelector('.lens');
   const items = [...dock.querySelectorAll('.item')];
   const stemItems = [...stem.querySelectorAll('.item')];
-  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)');
 
   let current = ROUTES.find(r => r.key === document.body.dataset.page) || routeAt(location.href) || ROUTES[1];
   let busy = false;
@@ -284,21 +283,28 @@
     ], { duration: 1250, fill: 'both' });
 
     // Merge: the pill swallows the dot (their circles coincide at the top),
-    // stays one piece through the fall, then buds the dot back off.
+    // then, as one piece, shrinks into a small capsule for the fall and
+    // springs back out to full size on the bounce, before budding the dot
+    // back off.
+    const M = H + T;  // the merged pill's full height
+    const pill = (top, height, scale = 1) =>
+      ({ top: px(top), height: px(height), left: px(D * (1 - scale) / 2), width: px(D * scale) });
     const merge = stem.animate([
-      { top: px(T), height: px(H), easing: 'cubic-bezier(.5, 0, .3, 1.2)' },
-      { top: '0px', height: px(H + T), offset: .2 },
-      { top: '0px', height: px(H + T), offset: .6, easing: 'cubic-bezier(.3, 0, .2, 1.4)' },
-      { top: px(T * 1.12), height: px(H - T * .12), offset: .8, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      { top: px(T), height: px(H) },
+      { ...pill(T, H), easing: 'cubic-bezier(.5, 0, .3, 1.2)' },
+      { ...pill(0, M), offset: .18, easing: 'cubic-bezier(.45, 0, .35, 1)' },
+      { ...pill(M * .26, M * .48, .78), offset: .36 },
+      { ...pill(M * .26, M * .48, .78), offset: .5, easing: 'cubic-bezier(.3, 0, .2, 1.5)' },
+      { ...pill(0, M), offset: .64, easing: 'cubic-bezier(.3, 0, .2, 1.4)' },
+      { ...pill(T * 1.12, H - T * .12), offset: .8, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      pill(T, H),
     ], { duration: 1250, fill: 'both' });
     const bud = dot.animate([
       { opacity: 1, transform: 'translateY(0)', easing: 'cubic-bezier(.5, 0, .3, 1)' },
-      { opacity: 1, transform: `translateY(${px(T * .25)})`, offset: .16 },
-      { opacity: 0, transform: 'translateY(0)', offset: .21 },
-      { opacity: 0, transform: 'translateY(0)', offset: .6 },
-      { opacity: 1, transform: `translateY(${px(-T * .3)})`, offset: .72, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      { opacity: 1, transform: `translateY(${px(T * .06)})`, offset: .86 },
+      { opacity: 1, transform: `translateY(${px(T * .25)})`, offset: .15 },
+      { opacity: 0, transform: 'translateY(0)', offset: .19 },
+      { opacity: 0, transform: 'translateY(0)', offset: .64 },
+      { opacity: 1, transform: `translateY(${px(-T * .3)})`, offset: .75, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      { opacity: 1, transform: `translateY(${px(T * .06)})`, offset: .88 },
       { opacity: 1, transform: 'translateY(0)' },
     ], { duration: 1250, fill: 'both' });
 
@@ -380,16 +386,6 @@
     inn.cancel();
   }
 
-  // Reduced motion: swap everything at once, with a brief fade.
-  async function swapQuietly(page) {
-    content.innerHTML = page.html;
-    scrollTo(0, 0);
-    const home = current.key === 'home';
-    letters.forEach((el, i) => { el.style.transform = home ? 'none' : awayTransform(away[i]); });
-    place(home ? G.home : G.docked);
-    await settle(content.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200 }));
-  }
-
   /* ---------- Navigation ---------- */
 
   const pages = new Map();
@@ -418,8 +414,7 @@
       markCurrent();
       restLens();
 
-      if (reduceMotion.matches) await swapQuietly(page);
-      else if (from.key === 'home') await landingToPage(page);
+      if (from.key === 'home') await landingToPage(page);
       else if (route.key === 'home') await pageToLanding(page);
       else {
         const step = ROUTES.indexOf(route) - ROUTES.indexOf(from);
