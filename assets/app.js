@@ -71,6 +71,8 @@
 <div class="stage" aria-hidden="true"><div class="word"><span class="row">${letter('E')}${brk('b4')}${letter('r')}</span><span class="row"><span class="i"><span class="i-glyph">i</span><span class="i-baseline"></span></span>${brk('b4')}${letter('c')}${letter('.')}</span></div></div>
 <nav class="dock" aria-label="Site">
   <div class="glass dot">${item(ROUTES[0])}</div>
+  <div class="rig" aria-hidden="true">${['top', 'body', 'bottom'].map(part =>
+    `<div class="rig-part rig-${part}"><div class="glass"></div></div>`).join('')}</div>
   <div class="glass stem"><span class="lens" aria-hidden="true"></span>${ROUTES.slice(1).map(item).join('')}</div>
 </nav>`);
 
@@ -84,6 +86,7 @@
   const dot = dock.querySelector('.dot');
   const stem = dock.querySelector('.stem');
   const lens = dock.querySelector('.lens');
+  const [rigTop, rigBody, rigBottom] = dock.querySelectorAll('.rig-part');
   const items = [...dock.querySelectorAll('.item')];
   const stemItems = [...stem.querySelectorAll('.item')];
 
@@ -166,20 +169,26 @@
           dotY: base + m.dot.y + (m.dot.h - m.stem.w) / 2 }
       : { x: .062 * size, w: .136 * size, h: .54 * size, stemY: .26 * size, dotY: .043 * size };
 
-    G.w = g.w;
-    G.stemTop = g.stemY - g.dotY;
-    G.stemH = g.h;
+    // Snapped to whole pixels (and an even width, so its half is whole too):
+    // the menu is drawn on its own layers, which the browser places on whole
+    // pixels, and its one-pixel rim only lines up if the geometry does too.
+    // The fit to the glyph moves by under half a pixel.
+    G.w = 2 * Math.round(g.w / 2);
+    G.stemTop = Math.round(g.stemY - g.dotY);
+    G.stemH = Math.round(g.h);
     G.h = G.stemTop + G.stemH;
 
     const r = slot.getBoundingClientRect();
-    G.home = { x: r.left + g.x, y: r.top + g.dotY };
+    G.home = { x: Math.round(r.left + g.x + (g.w - G.w) / 2), y: Math.round(r.top + g.dotY) };
     const vw = html.clientWidth, vh = innerHeight;
     const margin = Math.max(16, Math.min(40, vw * .03));
-    G.docked = { x: vw - margin - G.w, y: Math.max(margin, (vh - G.h) / 2) };
+    G.docked = { x: Math.round(vw - margin - G.w), y: Math.round(Math.max(margin, (vh - G.h) / 2)) };
 
     dock.style.setProperty('--stem-w', px(G.w));
     dock.style.setProperty('--stem-top', px(G.stemTop));
     dock.style.setProperty('--stem-h', px(G.stemH));
+    // Whole pixels, so the rig's layers line up with the pill pixel for pixel.
+    dock.style.setProperty('--m', Math.ceil(G.w * .6) + 'px');
     html.style.setProperty('--dock-space', px(G.w + margin * 2));
     if (!busy) {
       place(current.key === 'home' ? G.home : G.docked);
@@ -225,6 +234,21 @@
   const settle = a => a.finished.catch(() => {});
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const rand = (lo, hi) => lo + Math.random() * (hi - lo);
+
+  // CSS-style cubic-bezier(x1, y1, x2, y2) as a function of time.
+  function cubicBezier(x1, y1, x2, y2) {
+    const curve = (a, b, t) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3;
+    const slope = (a, b, t) => 3 * a * (1 - t) ** 2 + 6 * (b - a) * t * (1 - t) + 3 * (1 - b) * t * t;
+    return x => {
+      let t = x;
+      for (let i = 0; i < 8; i++) {
+        const d = slope(x1, x2, t);
+        if (Math.abs(d) < 1e-6) break;
+        t -= (curve(x1, x2, t) - x) / d;
+      }
+      return curve(y1, y2, Math.min(1, Math.max(0, t)));
+    };
+  }
 
   // Where each letter drifts to when it floats away: its own sideways drift
   // and spin, kept so the trip home can retrace it.
@@ -279,7 +303,7 @@
       `translate(${px(x)}, ${px(y)}) rotate(${rot}deg) scale(${sx}, ${sy})`;
     const dir = Math.sign(to.x - from.x) || 1;
     const drop = Math.min(innerHeight * .16, 150);
-    const T = G.stemTop, H = G.stemH, D = G.w;
+    const T = G.stemTop, H = G.stemH, D = G.w, r = D / 2;
 
     const flight = dock.animate([
       { transform: t(from.x, from.y), easing: 'cubic-bezier(.3, 0, .5, 1)' },
@@ -294,18 +318,50 @@
     // then, as one piece, shrinks into a small capsule for the fall and
     // springs back out to full size on the bounce, before budding the dot
     // back off.
+    //
+    // The pill's shape is keyed as (top, height, scale), but changing an
+    // element's size makes the browser lay out and repaint the glass every
+    // frame, which is slow. So while it flies, the glass is drawn by a rig of
+    // three pieces, each a window onto a copy of the pill painted once: a top
+    // cap and a bottom cap that only move and scale evenly (so they stay
+    // round), and a middle that stretches. The real pill keeps its icons and
+    // hides its glass until the rig has settled back exactly over it.
     const M = H + T;  // the merged pill's full height
-    const pill = (top, height, scale = 1) =>
-      ({ top: px(top), height: px(height), left: px(D * (1 - scale) / 2), width: px(D * scale) });
-    const merge = stem.animate([
-      { ...pill(T, H), easing: 'cubic-bezier(.5, 0, .3, 1.2)' },
-      { ...pill(0, M), offset: .18, easing: 'cubic-bezier(.45, 0, .35, 1)' },
-      { ...pill(M * .26, M * .48, .78), offset: .36 },
-      { ...pill(M * .26, M * .48, .78), offset: .5, easing: 'cubic-bezier(.3, 0, .2, 1.5)' },
-      { ...pill(0, M), offset: .64, easing: 'cubic-bezier(.3, 0, .2, 1.4)' },
-      { ...pill(T * 1.12, H - T * .12), offset: .8, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      pill(T, H),
-    ], { duration: 1250, fill: 'both' });
+    const shapeKeys = [
+      { at: 0,   top: T,        height: H,        scale: 1,   ease: [.5, 0, .3, 1.2] },
+      { at: .18, top: 0,        height: M,        scale: 1,   ease: [.45, 0, .35, 1] },
+      { at: .36, top: M * .26,  height: M * .48,  scale: .78, ease: null },
+      { at: .5,  top: M * .26,  height: M * .48,  scale: .78, ease: [.3, 0, .2, 1.5] },
+      { at: .64, top: 0,        height: M,        scale: 1,   ease: [.3, 0, .2, 1.4] },
+      { at: .8,  top: T * 1.12, height: H - T * .12, scale: 1, ease: [.45, 0, .55, 1] },
+      { at: 1,   top: T,        height: H,        scale: 1 },
+    ].map(k => ({ ...k, curve: k.ease ? cubicBezier(...k.ease) : x => x }));
+    const shapeAt = p => {
+      let i = 0;
+      while (i < shapeKeys.length - 2 && p > shapeKeys[i + 1].at) i++;
+      const a = shapeKeys[i], b = shapeKeys[i + 1];
+      const e = a.curve((p - a.at) / (b.at - a.at));
+      const lerp = k => a[k] + (b[k] - a[k]) * e;
+      return { top: lerp('top'), height: lerp('height'), scale: lerp('scale') };
+    };
+    // The rig's pieces rest over the pill (its top at T); each frame moves
+    // them onto the pill's shape. Caps overlap the middle by a pixel so no
+    // seam shows.
+    const span = H - D;
+    const rigFrames = { top: [], body: [], bottom: [] };
+    for (let k = 0, n = 60; k <= n; k++) {
+      const offset = k / n, { top, height, scale: sc } = shapeAt(offset);
+      rigFrames.top.push({ offset, transform: `translateY(${px(top - T)}) scale(${sc.toFixed(4)})` });
+      rigFrames.bottom.push({ offset, transform: `translateY(${px(top + height - T - H)}) scale(${sc.toFixed(4)})` });
+      rigFrames.body.push({ offset, transform: `translateY(${px(top + sc * r - T - r)}) scale(${sc.toFixed(4)}, ${((height - sc * D) / span).toFixed(4)})` });
+    }
+    const merge = [
+      rigTop.animate(rigFrames.top, { duration: 1250, fill: 'both' }),
+      rigBody.animate(rigFrames.body, { duration: 1250, fill: 'both' }),
+      rigBottom.animate(rigFrames.bottom, { duration: 1250, fill: 'both' }),
+    ];
+    dock.classList.add('is-flying');
+
     const bud = dot.animate([
       { opacity: 1, transform: 'translateY(0)', easing: 'cubic-bezier(.5, 0, .3, 1)' },
       { opacity: 1, transform: `translateY(${px(T * .25)})`, offset: .15 },
@@ -325,9 +381,10 @@
       { opacity: 1, scale: 1 },
     ], { duration: 1250, fill: 'both', easing: 'ease-out' }));
 
-    const all = [flight, merge, bud, ...hide];
+    const all = [flight, ...merge, bud, ...hide];
     return Promise.all(all.map(settle)).then(() => {
       place(to);
+      dock.classList.remove('is-flying');
       all.forEach(a => a.cancel());
     });
   }

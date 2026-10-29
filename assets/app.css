@@ -72,6 +72,8 @@
   width: var(--stem-w);
   height: calc(var(--stem-top) + var(--stem-h));
   transform: translate(var(--x, 0px), var(--y, 0px));
+  /* Keep the menu on its own layer so moving it never repaints it. */
+  will-change: transform;
 }
 
 /* Hold the menu until it's fitted to the real glyph, then settle in. */
@@ -110,8 +112,6 @@
   --glass-tint: rgba(110,115,130,.09);
   /* Clear glass: mostly see-through, lifted only slightly over the page. */
   background: linear-gradient(var(--glass-tint), var(--glass-tint)), rgba(255,255,255,.55);
-  -webkit-backdrop-filter: blur(14px) saturate(1.8);
-  backdrop-filter: blur(14px) saturate(1.8);
   box-shadow:
     /* Recessed: a soft shadow cast inward from under the top lip, deepest
        at 12 o'clock and fading by 10 and 2. */
@@ -195,6 +195,63 @@
   border-radius: 999px;
   box-shadow: 0 0 0 2px #0a84ff;
 }
+
+/* The rig that draws the pill's glass while the menu flies (see flyDock in
+   app.js): three windows, each onto a copy of the pill's glass, which only
+   move and scale. Each window is wider than the pill so the glass's shadow
+   isn't cut off. Its glass is opaque, the colour the clear glass shows on a
+   white page, so the pixel where pieces overlap doesn't darken. */
+.rig {
+  position: absolute;
+  left: 0;
+  top: var(--stem-top);
+  width: var(--stem-w);
+  height: var(--stem-h);
+  pointer-events: none;
+  visibility: hidden;
+}
+.is-flying .rig { visibility: visible; }
+.rig-part {
+  position: absolute;
+  left: calc(-1 * var(--m));
+  right: calc(-1 * var(--m));
+  overflow: hidden;
+  will-change: transform;
+}
+.rig-part .glass {
+  left: var(--m);
+  height: var(--stem-h);
+  background: rgb(242, 242, 244);
+  transition: none;
+}
+.rig-top {
+  top: calc(-1 * var(--m));
+  height: calc(var(--m) + var(--stem-w) / 2 + 1px);
+  transform-origin: 50% var(--m);
+  /* The pixel that overlaps the middle covers only the glass, not the
+     shadow beside it, which would otherwise darken there. */
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 1px), calc(100% - var(--m)) calc(100% - 1px),
+    calc(100% - var(--m)) 100%, var(--m) 100%, var(--m) calc(100% - 1px), 0 calc(100% - 1px));
+}
+.rig-top .glass { top: var(--m); }
+.rig-body {
+  top: calc(var(--stem-w) / 2);
+  height: calc(var(--stem-h) - var(--stem-w));
+  transform-origin: 50% 0;
+}
+.rig-body .glass { top: calc(var(--stem-w) / -2); }
+.rig-bottom {
+  top: calc(var(--stem-h) - var(--stem-w) / 2 - 1px);
+  /* Extra room below for the glass's soft shadow. */
+  height: calc(var(--stem-w) / 2 + 1px + var(--m) * 2);
+  transform-origin: 50% calc(var(--stem-w) / 2 + 1px);
+  clip-path: polygon(0 1px, var(--m) 1px, var(--m) 0, calc(100% - var(--m)) 0, calc(100% - var(--m)) 1px,
+    100% 1px, 100% 100%, 0 100%);
+}
+.rig-bottom .glass { top: calc(var(--stem-w) / 2 + 1px - var(--stem-h)); }
+/* While the rig stands in, the pill shows only its icons and lens. */
+.is-flying .stem { background: none; box-shadow: none; }
+.is-flying .stem::before, .is-flying .stem::after { visibility: hidden; }
 
 /* Selection lens: a small inner glass bubble that follows the pointer and
    rests on the current page, like the iOS tab bar. The dot has no room for
