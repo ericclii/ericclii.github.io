@@ -339,50 +339,66 @@
 
   /* ---------- Page transitions ---------- */
 
+  // A page can be many screens long, but only the screenful in view should
+  // ever move: anything above or below it would slide into view and land on
+  // top of the other page. This crops an element to the part on screen now.
+  function cropToView(el) {
+    const r = el.getBoundingClientRect();
+    const top = Math.max(0, -r.top);
+    const bottom = Math.max(0, r.bottom - innerHeight);
+    el.style.clipPath = `inset(${px(top)} 0 ${px(bottom)} 0)`;
+  }
+  const uncrop = el => el.style.removeProperty('clip-path');
+
   async function landingToPage(page) {
     content.innerHTML = page.html;
     scrollTo(0, 0);
+    cropToView(content);
     const rise = content.animate(
       [{ transform: 'translateY(100vh)' }, { transform: 'none' }],
       { duration: 950, delay: 680, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'both' });
     await Promise.all([floatAway(), flyDock(G.home, G.docked), settle(rise)]);
+    uncrop(content);
     rise.cancel();
   }
 
   async function pageToLanding(page) {
+    cropToView(content);
     const fall = content.animate(
       [{ transform: 'none' }, { transform: 'translateY(100vh)' }],
       { duration: 700, easing: 'cubic-bezier(.6, 0, .8, .3)', fill: 'both' });
     await Promise.all([settle(fall), flyDock(G.docked, G.home), floatHome(250)]);
     content.innerHTML = page.html;
+    uncrop(content);
     fall.cancel();
     scrollTo(0, 0);
   }
 
-  // Like scrolling a long page: the old content leaves one way while the new
-  // content arrives from the other, quicker for neighbours on the menu.
+  // Like scrolling a long page: the old screenful leaves one way while the new
+  // page's first screenful arrives from the other, quicker for neighbours on
+  // the menu.
   async function pageToPage(page, dir, steps) {
+    cropToView(content);
     const r = content.getBoundingClientRect();
     const ghost = content.cloneNode(true);
     ghost.removeAttribute('id');
     ghost.setAttribute('aria-hidden', 'true');
     ghost.inert = true;
-    // Only what's on screen needs to leave: crop the copy at the viewport's
-    // bottom so a long page clears the screen in one screen-height of travel.
     Object.assign(ghost.style, {
       position: 'fixed', top: px(r.top), left: px(r.left), width: px(r.width),
-      height: px(innerHeight - r.top), overflow: 'hidden',
       margin: '0', pointerEvents: 'none',
     });
     document.body.append(ghost);
     content.innerHTML = page.html;
     scrollTo(0, 0);
+    cropToView(content);
 
     const timing = { duration: 520 + 90 * steps, easing: 'cubic-bezier(.65, 0, .25, 1)', fill: 'both' };
     const out = ghost.animate([{ transform: 'none' }, { transform: `translateY(${-dir * 100}vh)` }], timing);
     const inn = content.animate([{ transform: `translateY(${dir * 100}vh)` }, { transform: 'none' }], timing);
     await Promise.all([settle(out), settle(inn), nudgeDock(dir)]);
     ghost.remove();
+    uncrop(content);
     inn.cancel();
   }
 
