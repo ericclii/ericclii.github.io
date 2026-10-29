@@ -415,15 +415,15 @@
     });
   }
 
-  // A little nod of the menu when moving between two pages.
-  function nudgeDock(dir) {
+  // A small pulse of the menu, in place, when moving between two pages.
+  function pulseDock() {
     const p = G.docked;
-    const t = (y, sx = 1, sy = 1) => `translate(${px(p.x)}, ${px(y)}) scale(${sx}, ${sy})`;
+    const t = sc => `translate(${px(p.x)}, ${px(p.y)}) scale(${sc})`;
     const a = dock.animate([
-      { transform: t(p.y) },
-      { transform: t(p.y + dir * 4), offset: .4 },
-      { transform: t(p.y) },
-    ], { duration: 600, easing: 'cubic-bezier(.45, 0, .55, 1)' });
+      { transform: t(1) },
+      { transform: t(1.03), offset: .35 },
+      { transform: t(1) },
+    ], { duration: 480, easing: 'cubic-bezier(.45, 0, .55, 1)' });
     return settle(a);
   }
 
@@ -486,7 +486,7 @@
     const timing = { duration: 520 + 90 * steps, easing: 'cubic-bezier(.65, 0, .25, 1)', fill: 'both' };
     const out = ghost.animate([{ transform: 'none' }, { transform: `translateY(${-dir * 100}vh)` }], timing);
     const inn = content.animate([{ transform: `translateY(${dir * 100}vh)` }, { transform: 'none' }], timing);
-    await Promise.all([settle(out), settle(inn), nudgeDock(dir)]);
+    await Promise.all([settle(out), settle(inn), pulseDock()]);
     ghost.remove();
     uncrop(content);
     inn.cancel();
