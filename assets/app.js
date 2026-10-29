@@ -279,8 +279,8 @@
   // Where each letter drifts to when it floats away: its own sideways drift
   // and spin, kept so the trip home can retrace it.
   const away = letters.map(() => ({
-    dx: rand(-7, 7),
-    rot: rand(10, 22) * (Math.random() < .5 ? -1 : 1),
+    dx: rand(-3, 3),
+    rot: rand(4, 9) * (Math.random() < .5 ? -1 : 1),
   }));
   const awayTransform = a => `translate(${a.dx}vw, -125vh) rotate(${a.rot}deg)`;
 
@@ -292,30 +292,30 @@
     });
   }
 
-  // Balloons: a small dip as each lets go, then a slow, swaying climb that
-  // picks up speed. Staggered so they leave one by one.
+  // A slight dip as each lets go, then a climb that picks up speed, drifting
+  // and turning gently one way. Staggered so they leave one by one.
   function floatAway() {
     return Promise.all(letters.map((el, i) => {
       const { dx, rot } = away[i];
       return letterAnim(el, [
         { transform: 'translate(0, 0) rotate(0deg)' },
-        { transform: `translate(0, 1.8vh) rotate(${-rot * .12}deg) scale(1.04, .96)`, offset: .1 },
-        { transform: `translate(${dx * .3}vw, -9vh) rotate(${rot * .35}deg)`, offset: .34 },
-        { transform: `translate(${-dx * .2}vw, -46vh) rotate(${-rot * .4}deg)`, offset: .66 },
+        { transform: `translate(0, .8vh) rotate(0deg) scale(1.015, .985)`, offset: .1 },
+        { transform: `translate(${dx * .2}vw, -9vh) rotate(${rot * .25}deg)`, offset: .34 },
+        { transform: `translate(${dx * .5}vw, -46vh) rotate(${rot * .55}deg)`, offset: .66 },
         { transform: awayTransform(away[i]) },
       ], { duration: 1150, delay: [0, 80, 30, 120][i] + rand(0, 50), easing: 'cubic-bezier(.4, 0, .65, .6)' });
     }));
   }
 
-  // The same balloons drifting back down and landing with a little bounce.
+  // The same letters drifting back down and settling with a small bounce.
   function floatHome(delay) {
     return Promise.all(letters.map((el, i) => {
       const { dx, rot } = away[i];
       return letterAnim(el, [
         { transform: awayTransform(away[i]) },
-        { transform: `translate(${-dx * .2}vw, -38vh) rotate(${-rot * .35}deg)`, offset: .45 },
-        { transform: `translate(${dx * .08}vw, 1.6vh) rotate(${rot * .1}deg) scale(1.04, .96)`, offset: .8 },
-        { transform: `translate(0, -.5vh) rotate(${-rot * .03}deg)`, offset: .91 },
+        { transform: `translate(${dx * .4}vw, -38vh) rotate(${rot * .4}deg)`, offset: .45 },
+        { transform: `translate(${dx * .05}vw, .6vh) rotate(${rot * .05}deg) scale(1.01, .99)`, offset: .8 },
+        { transform: `translate(0, -.2vh) rotate(0deg)`, offset: .91 },
         { transform: 'none' },
       ], { duration: 1400, delay: delay + [60, 0, 120, 30][i] + rand(0, 60), easing: 'cubic-bezier(.2, .55, .35, 1)' });
     }));
