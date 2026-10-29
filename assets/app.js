@@ -72,7 +72,6 @@
 <nav class="dock" aria-label="Site">
   <div class="glass dot">${item(ROUTES[0])}</div>
   <div class="glass stem"><span class="lens" aria-hidden="true"></span>${ROUTES.slice(1).map(item).join('')}</div>
-  <svg class="neck" aria-hidden="true"><path class="neck-fill"/><path class="neck-edge"/></svg>
 </nav>`);
 
   const html = document.documentElement;
@@ -85,8 +84,6 @@
   const dot = dock.querySelector('.dot');
   const stem = dock.querySelector('.stem');
   const lens = dock.querySelector('.lens');
-  const neck = dock.querySelector('.neck');
-  const [neckFill, neckEdge] = neck.querySelectorAll('path');
   const items = [...dock.querySelectorAll('.item')];
   const stemItems = [...stem.querySelectorAll('.item')];
 
@@ -176,15 +173,6 @@
 
     const r = slot.getBoundingClientRect();
     G.home = { x: r.left + g.x, y: r.top + g.dotY };
-    // Room above the "i" before any letter: unlimited on one line; on phones,
-    // where the word is stacked, down to the baseline of the row above.
-    // (Layout offsets, which ignore the letters' float-away transforms.)
-    G.room = Infinity;
-    for (const ch of letters) {
-      const left = ch.offsetLeft, base = ch.offsetTop + ch.offsetHeight * .9;
-      if (left < G.home.x + g.w && left + ch.offsetWidth > G.home.x && base <= G.home.y)
-        G.room = Math.min(G.room, G.home.y - base);
-    }
     const vw = html.clientWidth, vh = innerHeight;
     const margin = Math.max(16, Math.min(40, vw * .03));
     G.docked = { x: vw - margin - G.w, y: Math.max(margin, (vh - G.h) / 2) };
@@ -238,28 +226,11 @@
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 
-  // CSS-style cubic-bezier(x1, y1, x2, y2) as a function of time, for sampling
-  // a motion path in script. y may run past 0..1, which is how it overshoots.
-  function cubicBezier(x1, y1, x2, y2) {
-    const curve = (a, b, t) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3;
-    const slope = (a, b, t) => 3 * a * (1 - t) ** 2 + 6 * (b - a) * t * (1 - t) + 3 * (1 - b) * t * t;
-    return x => {
-      let t = x;
-      for (let i = 0; i < 8; i++) {
-        const d = slope(x1, x2, t);
-        if (Math.abs(d) < 1e-6) break;
-        t -= (curve(x1, x2, t) - x) / d;
-      }
-      return curve(y1, y2, Math.min(1, Math.max(0, t)));
-    };
-  }
-
   // Where each letter drifts to when it floats away: its own sideways drift
   // and spin, kept so the trip home can retrace it.
-  // "c" and "." drift left, away from the edge the menu flies to.
-  const away = letters.map((_, i) => ({
-    dx: i < 2 ? rand(-7, 7) : rand(-7, -1.5),
-    rot: rand(7, 15) * (Math.random() < .5 ? -1 : 1),
+  const away = letters.map(() => ({
+    dx: rand(-7, 7),
+    rot: rand(10, 22) * (Math.random() < .5 ? -1 : 1),
   }));
   const awayTransform = a => `translate(${a.dx}vw, -125vh) rotate(${a.rot}deg)`;
 
@@ -272,18 +243,17 @@
   }
 
   // Balloons: a small dip as each lets go, then a slow, swaying climb that
-  // picks up speed. Staggered so they leave one by one, right to left: the
-  // "." goes first, being nearest the menu's path to the right edge.
+  // picks up speed. Staggered so they leave one by one.
   function floatAway() {
     return Promise.all(letters.map((el, i) => {
       const { dx, rot } = away[i];
       return letterAnim(el, [
         { transform: 'translate(0, 0) rotate(0deg)' },
-        { transform: `translate(0, 1.2vh) rotate(${-rot * .12}deg) scale(1.025, .975)`, offset: .1 },
+        { transform: `translate(0, 1.8vh) rotate(${-rot * .12}deg) scale(1.04, .96)`, offset: .1 },
         { transform: `translate(${dx * .3}vw, -9vh) rotate(${rot * .35}deg)`, offset: .34 },
         { transform: `translate(${-dx * .2}vw, -46vh) rotate(${-rot * .4}deg)`, offset: .66 },
         { transform: awayTransform(away[i]) },
-      ], { duration: 1000, delay: [105, 70, 25, 0][i] + (i < 3 ? rand(0, 35) : 0), easing: 'cubic-bezier(.4, 0, .65, .6)' });
+      ], { duration: 1150, delay: [0, 80, 30, 120][i] + rand(0, 50), easing: 'cubic-bezier(.4, 0, .65, .6)' });
     }));
   }
 
@@ -294,182 +264,69 @@
       return letterAnim(el, [
         { transform: awayTransform(away[i]) },
         { transform: `translate(${-dx * .2}vw, -38vh) rotate(${-rot * .35}deg)`, offset: .45 },
-        { transform: `translate(${dx * .08}vw, 1vh) rotate(${rot * .08}deg) scale(1.025, .975)`, offset: .8 },
+        { transform: `translate(${dx * .08}vw, 1.6vh) rotate(${rot * .1}deg) scale(1.04, .96)`, offset: .8 },
         { transform: `translate(0, -.5vh) rotate(${-rot * .03}deg)`, offset: .91 },
         { transform: 'none' },
-      ], { duration: 1250, delay: delay + [50, 0, 100, 25][i] + rand(0, 50), easing: 'cubic-bezier(.2, .55, .35, 1)' });
+      ], { duration: 1400, delay: delay + [60, 0, 120, 30][i] + rand(0, 60), easing: 'cubic-bezier(.2, .55, .35, 1)' });
     }));
   }
 
-  // The menu's trip between the "i" and the right edge: one smooth U-shaped
-  // curve that leaves the word straight downwards, sweeps beneath it and
-  // rises into place. Keeping below the word means the glass never passes
-  // over a letter (it isn't really transparent, so crossing one looks wrong).
-  // A single easing runs the whole trip and overshoots at the end, so the
-  // rise carries on into the bounce without a seam.
+  // The menu's trip between the "i" and the right edge. It hops, merges into a
+  // single pill, falls past its target, springs back up and splits apart,
+  // squashing and stretching as it goes.
   function flyDock(from, to) {
-    const DUR = 1100;
+    const t = (x, y, rot = 0, sx = 1, sy = 1) =>
+      `translate(${px(x)}, ${px(y)}) rotate(${rot}deg) scale(${sx}, ${sy})`;
     const dir = Math.sign(to.x - from.x) || 1;
+    const drop = Math.min(innerHeight * .16, 150);
     const T = G.stemTop, H = G.stemH, D = G.w;
-    // The bottom of the U: the word's baseline is the bottom of the menu when
-    // it sits in the "i", so clear that, but stay on screen.
-    const low = Math.min(G.home.y + G.h + D * .5, innerHeight - G.h * .8);
-    const deep = low + (low - Math.min(from.y, to.y)) * .45;
-    // One easing runs the whole trip; it runs past 1 near the end, which
-    // carries the menu on upwards past its spot before it settles back.
-    const ease = cubicBezier(.5, 0, .2, 1.35);
-    let peak = 0, uMax = 1;  // when (as a fraction of the trip) it tops out
-    for (let s = 0; s <= 1; s += .005) if (ease(s) > uMax) { uMax = ease(s); peak = s; }
-    // How far past its spot it rises, and how far the dot then shoots up out
-    // of the top. Returning to the "i", both are kept within the room above
-    // it (on phones the word is stacked, with letters right above the "i").
-    const home = to === G.home;
-    const room = home ? G.room - 8 : Infinity;
-    const over = Math.min(D * (home ? .45 : .3), room * .5);
-    const shoot = Math.min(T * .25, room * .5);
-    // Cubic Bézier: straight down from the start, straight up into the end.
-    const P = [from, { x: from.x, y: deep }, { x: to.x, y: deep }, to];
-    // The sideways part of the curve starts a beat after the drop and eases
-    // in, so the menu is below the word before it moves across.
-    const smooth = e => (e = Math.min(1, Math.max(0, e)), e * e * (3 - 2 * e));
-    // Past the end of the curve, the overshoot: it leaves `to` at the climb's
-    // own speed and slows to a stop `over` higher, so there's no seam.
-    const climb = 3 * (deep - to.y) * (uMax - 1) / over;
-    const at = u => {
-      if (u > 1) {
-        const f = Math.min(1, (u - 1) / (uMax - 1));
-        return { x: to.x, y: to.y - over * (1 - (1 - f) ** Math.max(1, climb)) };
-      }
-      const v = 1 - u, a = v * v * v, b = 3 * v * v * u, c = 3 * v * u * u, d = u * u * u;
-      return { x: from.x + (to.x - from.x) * smooth((u - .2) / .72),
-               y: a * P[0].y + b * P[1].y + c * P[2].y + d * P[3].y };
-    };
 
-    const frames = [];
-    for (let k = 0, n = 60; k <= n; k++) {
-      const s = k / n, u = ease(s), p = at(u);
-      // Lean into the sideways sweep, and stretch a little along the drop
-      // and the climb.
-      const sweep = Math.sin(Math.PI * Math.min(1, Math.max(0, u)));
-      const stretch = 1 + .03 * Math.sin(Math.PI * Math.min(1, Math.max(0, u)) * 2) ** 2;
-      frames.push({
-        transform: `translate(${px(p.x)}, ${px(p.y)}) rotate(${(dir * 3 * sweep).toFixed(2)}deg) scale(${(2 - stretch).toFixed(3)}, ${stretch.toFixed(3)})`,
-        offset: s,
-      });
-    }
-    const flight = dock.animate(frames, { duration: DUR, fill: 'both' });
+    const flight = dock.animate([
+      { transform: t(from.x, from.y), easing: 'cubic-bezier(.3, 0, .5, 1)' },
+      { transform: t(from.x, from.y - D * .5, 0, .96, 1.05), offset: .14, easing: 'cubic-bezier(.45, 0, .85, .55)' },
+      { transform: t(from.x + (to.x - from.x) * .9, to.y + drop, dir * 6, 1.05, .95), offset: .52, easing: 'cubic-bezier(.15, .65, .35, 1)' },
+      { transform: t(to.x, to.y - drop * .2, -dir * 2, .97, 1.04), offset: .72, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      { transform: t(to.x, to.y + drop * .06, dir * .5), offset: .86, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      { transform: t(to.x, to.y) },
+    ], { duration: 1250, fill: 'both' });
 
-    // The dot and pill behave like two beads of liquid. At the start the
-    // pill's top reaches up and the two join through a neck that thickens
-    // until they're one pill; it shrinks into a small capsule for the fall
-    // and grows back on the climb. At the top of the overshoot they part:
-    // the pill's top pulls away, the dot is dragged and stretched, the neck
-    // between them thins and pinches off, and both spring back into shape.
-    const M = H + T;            // the merged pill's full height
-    const r = D / 2;
-    const JOIN = 170;           // ms for the two to fuse
-    const SPLIT = 520;          // ms from the top of the overshoot to rest
-    const PINCH = .42;          // fraction of SPLIT at which the neck snaps
-    const peakMs = peak * DUR;
-    const total = peakMs + SPLIT;
-    const at_ = ms => Math.min(1, Math.max(0, ms / total));
-    const inOut = x => x * x * (3 - 2 * x);
-
-    // Damped springs, as functions of t from 0 to 1: `settleFrom` decays from
-    // 1 to 0 with a soft rebound; used for the recoil after the pinch.
-    const zeta = .45, omega = 12, wd = omega * Math.sqrt(1 - zeta * zeta);
-    const settleFrom = t => Math.exp(-zeta * omega * t) * (Math.cos(wd * t) + zeta / Math.sqrt(1 - zeta * zeta) * Math.sin(wd * t));
-
-    // Shape over time (ms): the pill's top, the dot's offset and stretch.
-    const STRETCH = 1.32;       // how far past its rest the pill's top pulls
-    function shape(ms) {
-      if (ms <= JOIN) {
-        const q = inOut(ms / JOIN);
-        return { top: T * (1 - q), dotY: T * .12 * q, sx: 1, sy: 1, phase: 'join', q };
-      }
-      if (ms < peakMs) return { top: 0, dotY: 0, sx: 1, sy: 1, phase: 'merged' };
-      const τ = Math.min(1, (ms - peakMs) / SPLIT);
-      if (τ < PINCH) {
-        const q = inOut(τ / PINCH);
-        return { top: T * STRETCH * q, dotY: T * .14 * q, sx: 1 - .07 * q, sy: 1 + .1 * q, phase: 'stretch', q };
-      }
-      const t = (τ - PINCH) / (1 - PINCH), k = settleFrom(t);
-      return { top: T + T * (STRETCH - 1) * k, dotY: T * .14 * k, sx: 1 + .07 * k, sy: 1 - .1 * k, phase: 'apart' };
-    }
-
-    // The neck: the waisted bridge between the dot's lower edge and the
-    // pill's top cap, painted the colour of the glass so the two read as one
-    // body of liquid.
-    function drawNeck(ms) {
-      const { top, dotY, phase, q } = shape(ms);
-      const join = phase === 'join', stretch = phase === 'stretch';
-      if (!(join && q > .1) && !stretch) { neck.style.opacity = 0; return; }
-      // How far apart the two are, 0 (fused) to 1 (about to snap / just met).
-      const pull = join ? 1 - q : q;
-      const a = r * (.95 - .5 * pull);                 // half-width where it meets each bead
-      const waist = a * (1 - .88 * pull * pull);        // half-width at its narrowest
-      const cx = r, h = Math.sqrt(r * r - a * a);
-      const y1 = r + dotY + h, y2 = top + r - h;        // where it meets the dot, the pill
-      if (y2 - y1 < .5) { neck.style.opacity = 0; return; }
-      const ym = (y1 + y2) / 2, c = 2 * waist - a;      // control point for that waist
-      const left = `M ${cx - a} ${y1} Q ${cx - c} ${ym} ${cx - a} ${y2}`;
-      const right = `M ${cx + a} ${y2} Q ${cx + c} ${ym} ${cx + a} ${y1}`;
-      neckFill.setAttribute('d', `${left} L ${cx + a} ${y2} Q ${cx + c} ${ym} ${cx + a} ${y1} Z`);
-      neckEdge.setAttribute('d', `${left} ${right}`);
-      neck.style.opacity = 1;
-    }
-
+    // Merge: the pill swallows the dot (their circles coincide at the top),
+    // then, as one piece, shrinks into a small capsule for the fall and
+    // springs back out to full size on the bounce, before budding the dot
+    // back off.
+    const M = H + T;  // the merged pill's full height
     const pill = (top, height, scale = 1) =>
       ({ top: px(top), height: px(height), left: px(D * (1 - scale) / 2), width: px(D * scale) });
-    const sample = (from, to, n, fn) => Array.from({ length: n + 1 }, (_, k) => {
-      const ms = from + (to - from) * k / n;
-      return { ...fn(ms), offset: at_(ms) };
-    });
-
     const merge = stem.animate([
-      ...sample(0, JOIN, 10, ms => { const { top } = shape(ms); return pill(top, M - top); }),
-      { ...pill(0, M), offset: at_(JOIN + 120), easing: 'cubic-bezier(.45, 0, .35, 1)' },
-      { ...pill(M * .26, M * .48, .78), offset: at_(JOIN + 300) },
-      { ...pill(M * .26, M * .48, .78), offset: at_(peakMs - 300), easing: 'cubic-bezier(.3, 0, .2, 1.2)' },
-      { ...pill(0, M), offset: at_(peakMs - 90) },
-      ...sample(peakMs, total, 30, ms => { const { top } = shape(ms); return pill(top, M - top); }),
-    ], { duration: total, fill: 'both' });
-
-    const dotFrame = ms => {
-      const { dotY, sx, sy } = shape(ms);
-      return { transform: `translateY(${px(dotY)}) scale(${sx.toFixed(3)}, ${sy.toFixed(3)})` };
-    };
+      { ...pill(T, H), easing: 'cubic-bezier(.5, 0, .3, 1.2)' },
+      { ...pill(0, M), offset: .18, easing: 'cubic-bezier(.45, 0, .35, 1)' },
+      { ...pill(M * .26, M * .48, .78), offset: .36 },
+      { ...pill(M * .26, M * .48, .78), offset: .5, easing: 'cubic-bezier(.3, 0, .2, 1.5)' },
+      { ...pill(0, M), offset: .64, easing: 'cubic-bezier(.3, 0, .2, 1.4)' },
+      { ...pill(T * 1.12, H - T * .12), offset: .8, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      pill(T, H),
+    ], { duration: 1250, fill: 'both' });
     const bud = dot.animate([
-      // As it's absorbed, the dot fades into the pill so the two read as one.
-      ...sample(0, JOIN, 10, ms => ({ ...dotFrame(ms), opacity: 1 - inOut(Math.min(1, Math.max(0, (ms / JOIN - .45) / .5))) })),
-      { transform: 'none', opacity: 0, offset: at_(JOIN + 10) },
-      { transform: 'none', opacity: 0, offset: at_(peakMs - 1) },
-      ...sample(peakMs, total, 30, ms => ({ ...dotFrame(ms), opacity: 1 })),
-    ], { duration: total, fill: 'both' });
+      { opacity: 1, transform: 'translateY(0)', easing: 'cubic-bezier(.5, 0, .3, 1)' },
+      { opacity: 1, transform: `translateY(${px(T * .25)})`, offset: .15 },
+      { opacity: 0, transform: 'translateY(0)', offset: .19 },
+      { opacity: 0, transform: 'translateY(0)', offset: .64 },
+      { opacity: 1, transform: `translateY(${px(-T * .3)})`, offset: .75, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      { opacity: 1, transform: `translateY(${px(T * .06)})`, offset: .88 },
+      { opacity: 1, transform: 'translateY(0)' },
+    ], { duration: 1250, fill: 'both' });
 
-    // Icons and the lens duck out while the glass is in motion, and fade back
-    // once the two have parted.
-    const back = peakMs + SPLIT * PINCH;
+    // Icons and the lens duck out while the glass is in motion.
     const hide = [...items, lens].map(el => el.animate([
       { opacity: 1, scale: 1 },
-      { opacity: 0, scale: .7, offset: at_(110) },
-      { opacity: 0, scale: .7, offset: at_(back) },
-      { opacity: 1, scale: 1.04, offset: at_(back + 160) },
+      { opacity: 0, scale: .6, offset: .12 },
+      { opacity: 0, scale: .6, offset: .7 },
+      { opacity: 1, scale: 1.08, offset: .88 },
       { opacity: 1, scale: 1 },
-    ], { duration: total, fill: 'both' }));
-
-    // Redraw the neck every frame from the same clock as the glass.
-    let drawing = true;
-    (function frame() {
-      if (!drawing) return;
-      drawNeck(merge.currentTime ?? 0);
-      requestAnimationFrame(frame);
-    })();
+    ], { duration: 1250, fill: 'both', easing: 'ease-out' }));
 
     const all = [flight, merge, bud, ...hide];
     return Promise.all(all.map(settle)).then(() => {
-      drawing = false;
-      neck.style.opacity = 0;
       place(to);
       all.forEach(a => a.cancel());
     });
@@ -484,7 +341,7 @@
       { transform: t(p.y + dir * 12, .97, 1.03), offset: .3 },
       { transform: t(p.y - dir * 4, 1.02, .98), offset: .65 },
       { transform: t(p.y) },
-    ], { duration: 540, easing: 'cubic-bezier(.45, 0, .55, 1)' });
+    ], { duration: 600, easing: 'cubic-bezier(.45, 0, .55, 1)' });
     return settle(a);
   }
 
@@ -507,7 +364,7 @@
     cropToView(content);
     const rise = content.animate(
       [{ transform: 'translateY(100vh)' }, { transform: 'none' }],
-      { duration: 850, delay: 600, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'both' });
+      { duration: 950, delay: 680, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'both' });
     await Promise.all([floatAway(), flyDock(G.home, G.docked), settle(rise)]);
     uncrop(content);
     rise.cancel();
@@ -517,8 +374,8 @@
     cropToView(content);
     const fall = content.animate(
       [{ transform: 'none' }, { transform: 'translateY(100vh)' }],
-      { duration: 620, easing: 'cubic-bezier(.6, 0, .8, .3)', fill: 'both' });
-    await Promise.all([settle(fall), flyDock(G.docked, G.home), floatHome(200)]);
+      { duration: 700, easing: 'cubic-bezier(.6, 0, .8, .3)', fill: 'both' });
+    await Promise.all([settle(fall), flyDock(G.docked, G.home), floatHome(250)]);
     content.innerHTML = page.html;
     uncrop(content);
     fall.cancel();
@@ -544,7 +401,7 @@
     scrollTo(0, 0);
     cropToView(content);
 
-    const timing = { duration: 460 + 80 * steps, easing: 'cubic-bezier(.65, 0, .25, 1)', fill: 'both' };
+    const timing = { duration: 520 + 90 * steps, easing: 'cubic-bezier(.65, 0, .25, 1)', fill: 'both' };
     const out = ghost.animate([{ transform: 'none' }, { transform: `translateY(${-dir * 100}vh)` }], timing);
     const inn = content.animate([{ transform: `translateY(${dir * 100}vh)` }, { transform: 'none' }], timing);
     await Promise.all([settle(out), settle(inn), nudgeDock(dir)]);
@@ -587,9 +444,7 @@
         const step = ROUTES.indexOf(route) - ROUTES.indexOf(from);
         await pageToPage(page, Math.sign(step), Math.abs(step));
       }
-    } catch (err) {
-      // Anything going wrong mid-transition falls back to a plain page load.
-      console.error(err);
+    } catch {
       location.href = urlOf(route);
       return;
     } finally {
