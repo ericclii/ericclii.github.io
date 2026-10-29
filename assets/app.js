@@ -429,6 +429,16 @@
   }
   const uncrop = el => el.style.removeProperty('clip-path');
 
+  // Transitions resolve once their motion is visibly over, so the menu takes
+  // clicks again then. Slow easing tails (sub-pixel creeping) carry on in
+  // `tail`; the next transition snaps them to their end before it starts.
+  let tail = Promise.resolve();
+  // Resolves when an animation is `f` of the way through its own timeline.
+  const partway = (anim, f) => {
+    const { delay, duration } = anim.effect.getTiming();
+    return new Promise(r => setTimeout(r, delay + duration * f));
+  };
+
   async function landingToPage(page) {
     content.innerHTML = page.html;
     scrollTo(0, 0);
@@ -436,9 +446,10 @@
     const rise = content.animate(
       [{ transform: 'translateY(100vh)' }, { transform: 'none' }],
       { duration: 950, delay: 680, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'both' });
-    await Promise.all([floatAway(), flyDock(G.home, G.docked), settle(rise)]);
-    uncrop(content);
-    rise.cancel();
+    const fly = flyDock(G.home, G.docked);
+    tail = Promise.all([floatAway(), fly, settle(rise).then(() => { uncrop(content); rise.cancel(); })]);
+    // The rise's easing has all but finished 85% of the way through.
+    await Promise.all([fly, partway(rise, .85)]);
   }
 
   async function pageToLanding(page) {
@@ -446,11 +457,16 @@
     const fall = content.animate(
       [{ transform: 'none' }, { transform: 'translateY(100vh)' }],
       { duration: 700, easing: 'cubic-bezier(.6, 0, .8, .3)', fill: 'both' });
-    await Promise.all([settle(fall), flyDock(G.docked, G.home), floatHome(250)]);
-    content.innerHTML = page.html;
-    uncrop(content);
-    fall.cancel();
-    scrollTo(0, 0);
+    const swap = settle(fall).then(() => {
+      content.innerHTML = page.html;
+      uncrop(content);
+      fall.cancel();
+      scrollTo(0, 0);
+    });
+    const fly = flyDock(G.docked, G.home);
+    // The letters are settled to within a pixel by the time the menu lands.
+    tail = Promise.all([swap, fly, floatHome(250)]);
+    await Promise.all([swap, fly]);
   }
 
   // Like scrolling a long page: the old screenful leaves one way while the new
@@ -502,6 +518,9 @@
     busy = true;
     const from = current;
     try {
+      // Snap whatever's left of the last transition to its end.
+      document.getAnimations().forEach(a => a.finish());
+      await tail;
       const page = await load(route);
       current = route;
       if (push) history.pushState({ key: route.key }, '', urlOf(route));
