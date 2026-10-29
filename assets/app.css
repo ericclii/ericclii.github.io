@@ -23,8 +23,19 @@
   /* Balance the trailing tracking after the period so the word sits centred. */
   padding-left: var(--tracking);
   white-space: nowrap;
+  text-align: center;
   user-select: none;
   -webkit-user-select: none;
+}
+
+/* Stacking the word on phones (PHONE_STACK in app.js). A .brk is an empty
+   block that ends a line when its set is active. */
+.brk { display: none; }
+@media (max-width: 600px) and (orientation: portrait) {
+  [data-stack="2"] .word { font-size: min(72vw, 40svh); line-height: .95; }
+  [data-stack="2"] .brk.b2 { display: block; }
+  [data-stack="4"] .word { font-size: min(96vw, 24svh); line-height: .86; }
+  [data-stack="4"] .brk.b4 { display: block; }
 }
 
 /* Each letter floats off on its own, like a balloon. */

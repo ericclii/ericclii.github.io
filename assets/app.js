@@ -15,6 +15,10 @@
   // Folder URLs ("about/") rely on the host serving index.html for a folder.
   // Hosts that don't can set this to "index.html".
   const INDEX = '';
+  // On phones in portrait the word stacks so its letters, and the menu fitted
+  // to the "i", can be much larger: 2 for "Er / ic.", 4 for "E / r / i / c.".
+  const PHONE_STACK = 2;
+  document.documentElement.dataset.stack = PHONE_STACK;
 
   const ROUTES = [
     { key: 'about',      path: 'about/',      label: 'About',           icon: 'person-crop-circle' },
@@ -58,9 +62,12 @@
   const item = r => `<a class="item" href="${urlOf(r)}" data-route="${r.key}" aria-label="${r.label}" title="${r.label}">` +
     `<svg aria-hidden="true"><use href="#sf-${r.icon}"/></svg></a>`;
   const letter = c => `<span class="ch">${c}</span>`;
+  // Line breaks for stacking the word on phones; which set is used depends on
+  // PHONE_STACK below (see .brk in app.css).
+  const brk = sets => `<span class="brk ${sets}"></span>`;
 
   document.body.insertAdjacentHTML('afterbegin', SYMBOLS + `
-<div class="stage" aria-hidden="true"><div class="word">${letter('E')}${letter('r')}<span class="i"><span class="i-glyph">i</span><span class="i-baseline"></span></span>${letter('c')}${letter('.')}</div></div>
+<div class="stage" aria-hidden="true"><div class="word">${letter('E')}${brk('b4')}${letter('r')}${brk('b2 b4')}<span class="i"><span class="i-glyph">i</span><span class="i-baseline"></span></span>${brk('b4')}${letter('c')}${letter('.')}</div></div>
 <nav class="dock" aria-label="Site">
   <div class="glass dot">${item(ROUTES[0])}</div>
   <div class="glass stem"><span class="lens" aria-hidden="true"></span>${ROUTES.slice(1).map(item).join('')}</div>
