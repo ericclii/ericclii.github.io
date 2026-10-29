@@ -21,8 +21,8 @@
   document.documentElement.dataset.stack = PHONE_STACK;
 
   const ROUTES = [
-    { key: 'about',      path: 'about/',      label: 'About',           icon: 'person-crop-circle' },
     { key: 'home',       path: '',            label: 'Home',            icon: 'house' },
+    { key: 'about',      path: 'about/',      label: 'About',           icon: 'person-crop-circle' },
     { key: 'projects',   path: 'projects/',   label: 'Projects',        icon: 'folder' },
     { key: 'experience', path: 'experience/', label: 'Experience',      icon: 'doc-text' },
     { key: 'resume',     path: 'resume/',     label: 'Download resume', icon: 'arrow-down-doc' },
@@ -208,7 +208,7 @@
     lens.classList.remove('is-hidden');
   }
 
-  // Rest on the current page; the about page lives in the dot, so hide it.
+  // Rest on the current page; the landing page lives in the dot, so hide it.
   function restLens() {
     const a = stemItems.find(x => x.dataset.route === current.key);
     if (a) moveLens(a); else lens.classList.add('is-hidden');
