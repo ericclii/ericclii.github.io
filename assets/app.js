@@ -256,7 +256,7 @@
   // "c" and "." drift left, away from the edge the menu flies to.
   const away = letters.map((_, i) => ({
     dx: i < 2 ? rand(-7, 7) : rand(-7, -1.5),
-    rot: rand(10, 22) * (Math.random() < .5 ? -1 : 1),
+    rot: rand(7, 15) * (Math.random() < .5 ? -1 : 1),
   }));
   const awayTransform = a => `translate(${a.dx}vw, -125vh) rotate(${a.rot}deg)`;
 
@@ -276,11 +276,11 @@
       const { dx, rot } = away[i];
       return letterAnim(el, [
         { transform: 'translate(0, 0) rotate(0deg)' },
-        { transform: `translate(0, 1.8vh) rotate(${-rot * .12}deg) scale(1.04, .96)`, offset: .1 },
+        { transform: `translate(0, 1.2vh) rotate(${-rot * .12}deg) scale(1.025, .975)`, offset: .1 },
         { transform: `translate(${dx * .3}vw, -9vh) rotate(${rot * .35}deg)`, offset: .34 },
         { transform: `translate(${-dx * .2}vw, -46vh) rotate(${-rot * .4}deg)`, offset: .66 },
         { transform: awayTransform(away[i]) },
-      ], { duration: 1150, delay: [120, 80, 30, 0][i] + (i < 3 ? rand(0, 40) : 0), easing: 'cubic-bezier(.4, 0, .65, .6)' });
+      ], { duration: 1000, delay: [105, 70, 25, 0][i] + (i < 3 ? rand(0, 35) : 0), easing: 'cubic-bezier(.4, 0, .65, .6)' });
     }));
   }
 
@@ -291,10 +291,10 @@
       return letterAnim(el, [
         { transform: awayTransform(away[i]) },
         { transform: `translate(${-dx * .2}vw, -38vh) rotate(${-rot * .35}deg)`, offset: .45 },
-        { transform: `translate(${dx * .08}vw, 1.6vh) rotate(${rot * .1}deg) scale(1.04, .96)`, offset: .8 },
+        { transform: `translate(${dx * .08}vw, 1vh) rotate(${rot * .08}deg) scale(1.025, .975)`, offset: .8 },
         { transform: `translate(0, -.5vh) rotate(${-rot * .03}deg)`, offset: .91 },
         { transform: 'none' },
-      ], { duration: 1400, delay: delay + [60, 0, 120, 30][i] + rand(0, 60), easing: 'cubic-bezier(.2, .55, .35, 1)' });
+      ], { duration: 1250, delay: delay + [50, 0, 100, 25][i] + rand(0, 50), easing: 'cubic-bezier(.2, .55, .35, 1)' });
     }));
   }
 
@@ -305,6 +305,7 @@
   // A single easing runs the whole trip and overshoots at the end, so the
   // rise carries on into the bounce without a seam.
   function flyDock(from, to) {
+    const DUR = 1100;
     const dir = Math.sign(to.x - from.x) || 1;
     const T = G.stemTop, H = G.stemH, D = G.w;
     // The bottom of the U: the word's baseline is the bottom of the menu when
@@ -321,8 +322,8 @@
     // it (on phones the word is stacked, with letters right above the "i").
     const home = to === G.home;
     const room = home ? G.room - 8 : Infinity;
-    const over = Math.min(D * (home ? .9 : .5), room * .5);
-    const shoot = Math.min(T * .55, room * .5);
+    const over = Math.min(D * (home ? .45 : .3), room * .5);
+    const shoot = Math.min(T * .25, room * .5);
     // Cubic Bézier: straight down from the start, straight up into the end.
     const P = [from, { x: from.x, y: deep }, { x: to.x, y: deep }, to];
     // The sideways part of the curve starts a beat after the drop and eases
@@ -347,50 +348,60 @@
       // Lean into the sideways sweep, and stretch a little along the drop
       // and the climb.
       const sweep = Math.sin(Math.PI * Math.min(1, Math.max(0, u)));
-      const stretch = 1 + .05 * Math.sin(Math.PI * Math.min(1, Math.max(0, u)) * 2) ** 2;
+      const stretch = 1 + .03 * Math.sin(Math.PI * Math.min(1, Math.max(0, u)) * 2) ** 2;
       frames.push({
-        transform: `translate(${px(p.x)}, ${px(p.y)}) rotate(${(dir * 5 * sweep).toFixed(2)}deg) scale(${(2 - stretch).toFixed(3)}, ${stretch.toFixed(3)})`,
+        transform: `translate(${px(p.x)}, ${px(p.y)}) rotate(${(dir * 3 * sweep).toFixed(2)}deg) scale(${(2 - stretch).toFixed(3)}, ${stretch.toFixed(3)})`,
         offset: s,
       });
     }
-    const flight = dock.animate(frames, { duration: 1250, fill: 'both' });
+    const flight = dock.animate(frames, { duration: DUR, fill: 'both' });
 
     // Merge: the pill swallows the dot (their circles coincide at the top),
     // then, as one piece, shrinks into a small capsule for the fall and
     // springs back out to full size on the climb. It stays one piece until
-    // the top of the overshoot, where the dot pops out and shoots up.
+    // the top of the overshoot; from there a damped spring lets the dot rise
+    // out of the top while the pill's top settles back to its place.
     const M = H + T;  // the merged pill's full height
     const pill = (top, height, scale = 1) =>
       ({ top: px(top), height: px(height), left: px(D * (1 - scale) / 2), width: px(D * scale) });
+    // Damped spring over the rest of the trip (τ from 0 to 1): `step` eases
+    // from 0 to 1 with a soft overshoot; `kick` rises from 0, peaks at 1 and
+    // decays back to 0 with a fading wobble.
+    const zeta = .55, omega = 11, wd = omega * Math.sqrt(1 - zeta * zeta);
+    const step = τ => 1 - Math.exp(-zeta * omega * τ) * (Math.cos(wd * τ) + zeta / Math.sqrt(1 - zeta * zeta) * Math.sin(wd * τ));
+    const kickRaw = τ => Math.exp(-zeta * omega * τ) * Math.sin(wd * τ);
+    const kickPeak = kickRaw(Math.atan(wd / (zeta * omega)) / wd);
+    const kick = τ => kickRaw(τ) / kickPeak;
+    const after = (n, fn) => Array.from({ length: n }, (_, k) => {
+      const τ = (k + 1) / n;
+      return { ...fn(τ), offset: peak + (1 - peak) * τ };
+    });
+
     const merge = stem.animate([
       { ...pill(T, H), easing: 'cubic-bezier(.5, 0, .3, 1.2)' },
       { ...pill(0, M), offset: .12, easing: 'cubic-bezier(.45, 0, .35, 1)' },
       { ...pill(M * .26, M * .48, .78), offset: .26 },
-      { ...pill(M * .26, M * .48, .78), offset: peak - .26, easing: 'cubic-bezier(.3, 0, .2, 1.3)' },
+      { ...pill(M * .26, M * .48, .78), offset: peak - .26, easing: 'cubic-bezier(.3, 0, .2, 1.2)' },
       { ...pill(0, M), offset: peak - .08 },
-      { ...pill(0, M), offset: peak, easing: 'cubic-bezier(.2, .7, .3, 1)' },
-      { ...pill(T * 1.15, H - T * .15), offset: peak + .1, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      pill(T, H),
-    ], { duration: 1250, fill: 'both' });
+      { ...pill(0, M), offset: peak },
+      ...after(20, τ => { const top = T * step(τ); return pill(top, M - top); }),
+    ], { duration: DUR, fill: 'both' });
     const bud = dot.animate([
       { opacity: 1, transform: 'translateY(0)', easing: 'cubic-bezier(.5, 0, .3, 1)' },
-      { opacity: 1, transform: `translateY(${px(T * .25)})`, offset: .09 },
+      { opacity: 1, transform: `translateY(${px(T * .2)})`, offset: .09 },
       { opacity: 0, transform: 'translateY(0)', offset: .12 },
-      { opacity: 0, transform: 'translateY(0)', offset: peak, easing: 'cubic-bezier(.2, .8, .3, 1)' },
-      { opacity: 1, transform: `translateY(${px(-shoot)})`, offset: peak + .1, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      { opacity: 1, transform: `translateY(${px(T * .06)})`, offset: peak + .19, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      { opacity: 1, transform: 'translateY(0)' },
-    ], { duration: 1250, fill: 'both' });
+      { opacity: 0, transform: 'translateY(0)', offset: peak },
+      ...after(20, τ => ({ opacity: Math.min(1, τ * 6), transform: `translateY(${px(-shoot * kick(τ))})` })),
+    ], { duration: DUR, fill: 'both' });
 
-    // Icons and the lens duck out while the glass is in motion, and come back
+    // Icons and the lens duck out while the glass is in motion, and fade back
     // as it splits.
     const hide = [...items, lens].map(el => el.animate([
       { opacity: 1, scale: 1 },
-      { opacity: 0, scale: .6, offset: .1 },
-      { opacity: 0, scale: .6, offset: peak + .02 },
-      { opacity: 1, scale: 1.08, offset: peak + .14 },
-      { opacity: 1, scale: 1 },
-    ], { duration: 1250, fill: 'both', easing: 'ease-out' }));
+      { opacity: 0, scale: .7, offset: .1 },
+      { opacity: 0, scale: .7, offset: peak },
+      ...after(12, τ => ({ opacity: Math.min(1, τ * 2.2), scale: .7 + .3 * step(τ) })),
+    ], { duration: DUR, fill: 'both' }));
 
     const all = [flight, merge, bud, ...hide];
     return Promise.all(all.map(settle)).then(() => {
@@ -408,7 +419,7 @@
       { transform: t(p.y + dir * 12, .97, 1.03), offset: .3 },
       { transform: t(p.y - dir * 4, 1.02, .98), offset: .65 },
       { transform: t(p.y) },
-    ], { duration: 600, easing: 'cubic-bezier(.45, 0, .55, 1)' });
+    ], { duration: 540, easing: 'cubic-bezier(.45, 0, .55, 1)' });
     return settle(a);
   }
 
@@ -431,7 +442,7 @@
     cropToView(content);
     const rise = content.animate(
       [{ transform: 'translateY(100vh)' }, { transform: 'none' }],
-      { duration: 950, delay: 680, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'both' });
+      { duration: 850, delay: 600, easing: 'cubic-bezier(.16, 1, .3, 1)', fill: 'both' });
     await Promise.all([floatAway(), flyDock(G.home, G.docked), settle(rise)]);
     uncrop(content);
     rise.cancel();
@@ -441,8 +452,8 @@
     cropToView(content);
     const fall = content.animate(
       [{ transform: 'none' }, { transform: 'translateY(100vh)' }],
-      { duration: 700, easing: 'cubic-bezier(.6, 0, .8, .3)', fill: 'both' });
-    await Promise.all([settle(fall), flyDock(G.docked, G.home), floatHome(250)]);
+      { duration: 620, easing: 'cubic-bezier(.6, 0, .8, .3)', fill: 'both' });
+    await Promise.all([settle(fall), flyDock(G.docked, G.home), floatHome(200)]);
     content.innerHTML = page.html;
     uncrop(content);
     fall.cancel();
@@ -468,7 +479,7 @@
     scrollTo(0, 0);
     cropToView(content);
 
-    const timing = { duration: 520 + 90 * steps, easing: 'cubic-bezier(.65, 0, .25, 1)', fill: 'both' };
+    const timing = { duration: 460 + 80 * steps, easing: 'cubic-bezier(.65, 0, .25, 1)', fill: 'both' };
     const out = ghost.animate([{ transform: 'none' }, { transform: `translateY(${-dir * 100}vh)` }], timing);
     const inn = content.animate([{ transform: `translateY(${dir * 100}vh)` }, { transform: 'none' }], timing);
     await Promise.all([settle(out), settle(inn), nudgeDock(dir)]);
@@ -511,7 +522,9 @@
         const step = ROUTES.indexOf(route) - ROUTES.indexOf(from);
         await pageToPage(page, Math.sign(step), Math.abs(step));
       }
-    } catch {
+    } catch (err) {
+      // Anything going wrong mid-transition falls back to a plain page load.
+      console.error(err);
       location.href = urlOf(route);
       return;
     } finally {
