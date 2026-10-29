@@ -173,6 +173,15 @@
 
     const r = slot.getBoundingClientRect();
     G.home = { x: r.left + g.x, y: r.top + g.dotY };
+    // Room above the "i" before any letter: unlimited on one line; on phones,
+    // where the word is stacked, down to the baseline of the row above.
+    // (Layout offsets, which ignore the letters' float-away transforms.)
+    G.room = Infinity;
+    for (const ch of letters) {
+      const left = ch.offsetLeft, base = ch.offsetTop + ch.offsetHeight * .9;
+      if (left < G.home.x + g.w && left + ch.offsetWidth > G.home.x && base <= G.home.y)
+        G.room = Math.min(G.room, G.home.y - base);
+    }
     const vw = html.clientWidth, vh = innerHeight;
     const margin = Math.max(16, Math.min(40, vw * .03));
     G.docked = { x: vw - margin - G.w, y: Math.max(margin, (vh - G.h) / 2) };
@@ -302,21 +311,38 @@
     // it sits in the "i", so clear that, but stay on screen.
     const low = Math.min(G.home.y + G.h + D * .5, innerHeight - G.h * .8);
     const deep = low + (low - Math.min(from.y, to.y)) * .45;
+    // One easing runs the whole trip; it runs past 1 near the end, which
+    // carries the menu on upwards past its spot before it settles back.
+    const ease = cubicBezier(.5, 0, .2, 1.35);
+    let peak = 0, uMax = 1;  // when (as a fraction of the trip) it tops out
+    for (let s = 0; s <= 1; s += .005) if (ease(s) > uMax) { uMax = ease(s); peak = s; }
+    // How far past its spot it rises, and how far the dot then shoots up out
+    // of the top. Returning to the "i", both are kept within the room above
+    // it (on phones the word is stacked, with letters right above the "i").
+    const home = to === G.home;
+    const room = home ? G.room - 8 : Infinity;
+    const over = Math.min(D * (home ? .9 : .5), room * .5);
+    const shoot = Math.min(T * .55, room * .5);
     // Cubic Bézier: straight down from the start, straight up into the end.
     const P = [from, { x: from.x, y: deep }, { x: to.x, y: deep }, to];
     // The sideways part of the curve starts a beat after the drop and eases
     // in, so the menu is below the word before it moves across.
     const smooth = e => (e = Math.min(1, Math.max(0, e)), e * e * (3 - 2 * e));
+    // Past the end of the curve, the overshoot: it leaves `to` at the climb's
+    // own speed and slows to a stop `over` higher, so there's no seam.
+    const climb = 3 * (deep - to.y) * (uMax - 1) / over;
     const at = u => {
+      if (u > 1) {
+        const f = Math.min(1, (u - 1) / (uMax - 1));
+        return { x: to.x, y: to.y - over * (1 - (1 - f) ** Math.max(1, climb)) };
+      }
       const v = 1 - u, a = v * v * v, b = 3 * v * v * u, c = 3 * v * u * u, d = u * u * u;
       return { x: from.x + (to.x - from.x) * smooth((u - .2) / .72),
                y: a * P[0].y + b * P[1].y + c * P[2].y + d * P[3].y };
     };
-    // Overshoot less when settling back into the "i", which has letters above it.
-    const ease = cubicBezier(.42, 0, .22, to === G.home ? 1.1 : 1.18);
 
     const frames = [];
-    for (let k = 0, n = 48; k <= n; k++) {
+    for (let k = 0, n = 60; k <= n; k++) {
       const s = k / n, u = ease(s), p = at(u);
       // Lean into the sideways sweep, and stretch a little along the drop
       // and the climb.
@@ -331,36 +357,38 @@
 
     // Merge: the pill swallows the dot (their circles coincide at the top),
     // then, as one piece, shrinks into a small capsule for the fall and
-    // springs back out to full size on the bounce, before budding the dot
-    // back off.
+    // springs back out to full size on the climb. It stays one piece until
+    // the top of the overshoot, where the dot pops out and shoots up.
     const M = H + T;  // the merged pill's full height
     const pill = (top, height, scale = 1) =>
       ({ top: px(top), height: px(height), left: px(D * (1 - scale) / 2), width: px(D * scale) });
     const merge = stem.animate([
       { ...pill(T, H), easing: 'cubic-bezier(.5, 0, .3, 1.2)' },
-      { ...pill(0, M), offset: .14, easing: 'cubic-bezier(.45, 0, .35, 1)' },
-      { ...pill(M * .26, M * .48, .78), offset: .3 },
-      { ...pill(M * .26, M * .48, .78), offset: .54, easing: 'cubic-bezier(.3, 0, .2, 1.5)' },
-      { ...pill(0, M), offset: .7, easing: 'cubic-bezier(.3, 0, .2, 1.4)' },
-      { ...pill(T * 1.12, H - T * .12), offset: .85, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      { ...pill(0, M), offset: .12, easing: 'cubic-bezier(.45, 0, .35, 1)' },
+      { ...pill(M * .26, M * .48, .78), offset: .26 },
+      { ...pill(M * .26, M * .48, .78), offset: peak - .26, easing: 'cubic-bezier(.3, 0, .2, 1.3)' },
+      { ...pill(0, M), offset: peak - .08 },
+      { ...pill(0, M), offset: peak, easing: 'cubic-bezier(.2, .7, .3, 1)' },
+      { ...pill(T * 1.15, H - T * .15), offset: peak + .1, easing: 'cubic-bezier(.45, 0, .55, 1)' },
       pill(T, H),
     ], { duration: 1250, fill: 'both' });
     const bud = dot.animate([
       { opacity: 1, transform: 'translateY(0)', easing: 'cubic-bezier(.5, 0, .3, 1)' },
-      { opacity: 1, transform: `translateY(${px(T * .25)})`, offset: .11 },
-      { opacity: 0, transform: 'translateY(0)', offset: .15 },
-      { opacity: 0, transform: 'translateY(0)', offset: .7 },
-      { opacity: 1, transform: `translateY(${px(-T * .3)})`, offset: .8, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      { opacity: 1, transform: `translateY(${px(T * .06)})`, offset: .91 },
+      { opacity: 1, transform: `translateY(${px(T * .25)})`, offset: .09 },
+      { opacity: 0, transform: 'translateY(0)', offset: .12 },
+      { opacity: 0, transform: 'translateY(0)', offset: peak, easing: 'cubic-bezier(.2, .8, .3, 1)' },
+      { opacity: 1, transform: `translateY(${px(-shoot)})`, offset: peak + .1, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      { opacity: 1, transform: `translateY(${px(T * .06)})`, offset: peak + .19, easing: 'cubic-bezier(.45, 0, .55, 1)' },
       { opacity: 1, transform: 'translateY(0)' },
     ], { duration: 1250, fill: 'both' });
 
-    // Icons and the lens duck out while the glass is in motion.
+    // Icons and the lens duck out while the glass is in motion, and come back
+    // as it splits.
     const hide = [...items, lens].map(el => el.animate([
       { opacity: 1, scale: 1 },
       { opacity: 0, scale: .6, offset: .1 },
-      { opacity: 0, scale: .6, offset: .76 },
-      { opacity: 1, scale: 1.08, offset: .9 },
+      { opacity: 0, scale: .6, offset: peak + .02 },
+      { opacity: 1, scale: 1.08, offset: peak + .14 },
       { opacity: 1, scale: 1 },
     ], { duration: 1250, fill: 'both', easing: 'ease-out' }));
 
