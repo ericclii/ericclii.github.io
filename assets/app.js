@@ -243,7 +243,8 @@
   }
 
   // Balloons: a small dip as each lets go, then a slow, swaying climb that
-  // picks up speed. Staggered so they leave one by one.
+  // picks up speed. Staggered so they leave one by one, right to left: the
+  // "." goes first, being nearest the menu's path to the right edge.
   function floatAway() {
     return Promise.all(letters.map((el, i) => {
       const { dx, rot } = away[i];
@@ -253,7 +254,7 @@
         { transform: `translate(${dx * .3}vw, -9vh) rotate(${rot * .35}deg)`, offset: .34 },
         { transform: `translate(${-dx * .2}vw, -46vh) rotate(${-rot * .4}deg)`, offset: .66 },
         { transform: awayTransform(away[i]) },
-      ], { duration: 1150, delay: [0, 80, 30, 120][i] + rand(0, 50), easing: 'cubic-bezier(.4, 0, .65, .6)' });
+      ], { duration: 1150, delay: [120, 80, 30, 0][i] + rand(0, 40), easing: 'cubic-bezier(.4, 0, .65, .6)' });
     }));
   }
 
@@ -271,22 +272,28 @@
     }));
   }
 
-  // The menu's trip between the "i" and the right edge. It hops, merges into a
-  // single pill, falls past its target, springs back up and splits apart,
-  // squashing and stretching as it goes.
+  // The menu's trip between the "i" and the right edge, in a U: it drops
+  // straight down out of the word, swings across beneath it, then rises into
+  // place and bounces. Keeping below the word means the glass never passes
+  // over a letter (it isn't really transparent, so crossing one looks wrong).
   function flyDock(from, to) {
     const t = (x, y, rot = 0, sx = 1, sy = 1) =>
       `translate(${px(x)}, ${px(y)}) rotate(${rot}deg) scale(${sx}, ${sy})`;
     const dir = Math.sign(to.x - from.x) || 1;
-    const drop = Math.min(innerHeight * .16, 150);
     const T = G.stemTop, H = G.stemH, D = G.w;
+    const dx = to.x - from.x;
+    // The bottom of the U: the word's baseline is the bottom of the menu when
+    // it sits in the "i", so clear that, but stay on screen.
+    const low = Math.min(G.home.y + G.h + D * .5, innerHeight - G.h * .8);
 
     const flight = dock.animate([
       { transform: t(from.x, from.y), easing: 'cubic-bezier(.3, 0, .5, 1)' },
-      { transform: t(from.x, from.y - D * .5, 0, .96, 1.05), offset: .14, easing: 'cubic-bezier(.45, 0, .85, .55)' },
-      { transform: t(from.x + (to.x - from.x) * .9, to.y + drop, dir * 6, 1.05, .95), offset: .52, easing: 'cubic-bezier(.15, .65, .35, 1)' },
-      { transform: t(to.x, to.y - drop * .2, -dir * 2, .97, 1.04), offset: .72, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      { transform: t(to.x, to.y + drop * .06, dir * .5), offset: .86, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      { transform: t(from.x, from.y - D * .3, 0, .96, 1.05), offset: .1, easing: 'cubic-bezier(.5, 0, .85, .5)' },
+      { transform: t(from.x + dx * .06, low, 0, 1.06, .94), offset: .32, easing: 'cubic-bezier(.4, 0, .6, 1)' },
+      { transform: t(from.x + dx * .5, low + D * .15, dir * 5), offset: .46, easing: 'cubic-bezier(.4, 0, .6, 1)' },
+      { transform: t(to.x - dx * .04, low, dir * 2, 1.04, .96), offset: .58, easing: 'cubic-bezier(.2, .65, .35, 1)' },
+      { transform: t(to.x, to.y - D * .35, -dir * 1.5, .97, 1.04), offset: .78, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      { transform: t(to.x, to.y + D * .08, dir * .5), offset: .89, easing: 'cubic-bezier(.45, 0, .55, 1)' },
       { transform: t(to.x, to.y) },
     ], { duration: 1250, fill: 'both' });
 
@@ -299,29 +306,29 @@
       ({ top: px(top), height: px(height), left: px(D * (1 - scale) / 2), width: px(D * scale) });
     const merge = stem.animate([
       { ...pill(T, H), easing: 'cubic-bezier(.5, 0, .3, 1.2)' },
-      { ...pill(0, M), offset: .18, easing: 'cubic-bezier(.45, 0, .35, 1)' },
-      { ...pill(M * .26, M * .48, .78), offset: .36 },
-      { ...pill(M * .26, M * .48, .78), offset: .5, easing: 'cubic-bezier(.3, 0, .2, 1.5)' },
-      { ...pill(0, M), offset: .64, easing: 'cubic-bezier(.3, 0, .2, 1.4)' },
-      { ...pill(T * 1.12, H - T * .12), offset: .8, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      { ...pill(0, M), offset: .14, easing: 'cubic-bezier(.45, 0, .35, 1)' },
+      { ...pill(M * .26, M * .48, .78), offset: .3 },
+      { ...pill(M * .26, M * .48, .78), offset: .54, easing: 'cubic-bezier(.3, 0, .2, 1.5)' },
+      { ...pill(0, M), offset: .7, easing: 'cubic-bezier(.3, 0, .2, 1.4)' },
+      { ...pill(T * 1.12, H - T * .12), offset: .85, easing: 'cubic-bezier(.45, 0, .55, 1)' },
       pill(T, H),
     ], { duration: 1250, fill: 'both' });
     const bud = dot.animate([
       { opacity: 1, transform: 'translateY(0)', easing: 'cubic-bezier(.5, 0, .3, 1)' },
-      { opacity: 1, transform: `translateY(${px(T * .25)})`, offset: .15 },
-      { opacity: 0, transform: 'translateY(0)', offset: .19 },
-      { opacity: 0, transform: 'translateY(0)', offset: .64 },
-      { opacity: 1, transform: `translateY(${px(-T * .3)})`, offset: .75, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      { opacity: 1, transform: `translateY(${px(T * .06)})`, offset: .88 },
+      { opacity: 1, transform: `translateY(${px(T * .25)})`, offset: .11 },
+      { opacity: 0, transform: 'translateY(0)', offset: .15 },
+      { opacity: 0, transform: 'translateY(0)', offset: .7 },
+      { opacity: 1, transform: `translateY(${px(-T * .3)})`, offset: .8, easing: 'cubic-bezier(.45, 0, .55, 1)' },
+      { opacity: 1, transform: `translateY(${px(T * .06)})`, offset: .91 },
       { opacity: 1, transform: 'translateY(0)' },
     ], { duration: 1250, fill: 'both' });
 
     // Icons and the lens duck out while the glass is in motion.
     const hide = [...items, lens].map(el => el.animate([
       { opacity: 1, scale: 1 },
-      { opacity: 0, scale: .6, offset: .12 },
-      { opacity: 0, scale: .6, offset: .7 },
-      { opacity: 1, scale: 1.08, offset: .88 },
+      { opacity: 0, scale: .6, offset: .1 },
+      { opacity: 0, scale: .6, offset: .76 },
+      { opacity: 1, scale: 1.08, offset: .9 },
       { opacity: 1, scale: 1 },
     ], { duration: 1250, fill: 'both', easing: 'ease-out' }));
 
