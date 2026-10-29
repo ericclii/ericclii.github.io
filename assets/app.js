@@ -226,10 +226,27 @@
   const wait = ms => new Promise(r => setTimeout(r, ms));
   const rand = (lo, hi) => lo + Math.random() * (hi - lo);
 
+  // CSS-style cubic-bezier(x1, y1, x2, y2) as a function of time, for sampling
+  // a motion path in script. y may run past 0..1, which is how it overshoots.
+  function cubicBezier(x1, y1, x2, y2) {
+    const curve = (a, b, t) => 3 * a * t * (1 - t) ** 2 + 3 * b * t * t * (1 - t) + t ** 3;
+    const slope = (a, b, t) => 3 * a * (1 - t) ** 2 + 6 * (b - a) * t * (1 - t) + 3 * (1 - b) * t * t;
+    return x => {
+      let t = x;
+      for (let i = 0; i < 8; i++) {
+        const d = slope(x1, x2, t);
+        if (Math.abs(d) < 1e-6) break;
+        t -= (curve(x1, x2, t) - x) / d;
+      }
+      return curve(y1, y2, Math.min(1, Math.max(0, t)));
+    };
+  }
+
   // Where each letter drifts to when it floats away: its own sideways drift
   // and spin, kept so the trip home can retrace it.
-  const away = letters.map(() => ({
-    dx: rand(-7, 7),
+  // "c" and "." drift left, away from the edge the menu flies to.
+  const away = letters.map((_, i) => ({
+    dx: i < 2 ? rand(-7, 7) : rand(-7, -1.5),
     rot: rand(10, 22) * (Math.random() < .5 ? -1 : 1),
   }));
   const awayTransform = a => `translate(${a.dx}vw, -125vh) rotate(${a.rot}deg)`;
@@ -254,7 +271,7 @@
         { transform: `translate(${dx * .3}vw, -9vh) rotate(${rot * .35}deg)`, offset: .34 },
         { transform: `translate(${-dx * .2}vw, -46vh) rotate(${-rot * .4}deg)`, offset: .66 },
         { transform: awayTransform(away[i]) },
-      ], { duration: 1150, delay: [120, 80, 30, 0][i] + rand(0, 40), easing: 'cubic-bezier(.4, 0, .65, .6)' });
+      ], { duration: 1150, delay: [120, 80, 30, 0][i] + (i < 3 ? rand(0, 40) : 0), easing: 'cubic-bezier(.4, 0, .65, .6)' });
     }));
   }
 
@@ -272,30 +289,45 @@
     }));
   }
 
-  // The menu's trip between the "i" and the right edge, in a U: it drops
-  // straight down out of the word, swings across beneath it, then rises into
-  // place and bounces. Keeping below the word means the glass never passes
+  // The menu's trip between the "i" and the right edge: one smooth U-shaped
+  // curve that leaves the word straight downwards, sweeps beneath it and
+  // rises into place. Keeping below the word means the glass never passes
   // over a letter (it isn't really transparent, so crossing one looks wrong).
+  // A single easing runs the whole trip and overshoots at the end, so the
+  // rise carries on into the bounce without a seam.
   function flyDock(from, to) {
-    const t = (x, y, rot = 0, sx = 1, sy = 1) =>
-      `translate(${px(x)}, ${px(y)}) rotate(${rot}deg) scale(${sx}, ${sy})`;
     const dir = Math.sign(to.x - from.x) || 1;
     const T = G.stemTop, H = G.stemH, D = G.w;
-    const dx = to.x - from.x;
     // The bottom of the U: the word's baseline is the bottom of the menu when
     // it sits in the "i", so clear that, but stay on screen.
     const low = Math.min(G.home.y + G.h + D * .5, innerHeight - G.h * .8);
+    const deep = low + (low - Math.min(from.y, to.y)) * .45;
+    // Cubic Bézier: straight down from the start, straight up into the end.
+    const P = [from, { x: from.x, y: deep }, { x: to.x, y: deep }, to];
+    // The sideways part of the curve starts a beat after the drop and eases
+    // in, so the menu is below the word before it moves across.
+    const smooth = e => (e = Math.min(1, Math.max(0, e)), e * e * (3 - 2 * e));
+    const at = u => {
+      const v = 1 - u, a = v * v * v, b = 3 * v * v * u, c = 3 * v * u * u, d = u * u * u;
+      return { x: from.x + (to.x - from.x) * smooth((u - .2) / .72),
+               y: a * P[0].y + b * P[1].y + c * P[2].y + d * P[3].y };
+    };
+    // Overshoot less when settling back into the "i", which has letters above it.
+    const ease = cubicBezier(.42, 0, .22, to === G.home ? 1.1 : 1.18);
 
-    const flight = dock.animate([
-      { transform: t(from.x, from.y), easing: 'cubic-bezier(.3, 0, .5, 1)' },
-      { transform: t(from.x, from.y - D * .3, 0, .96, 1.05), offset: .1, easing: 'cubic-bezier(.5, 0, .85, .5)' },
-      { transform: t(from.x + dx * .06, low, 0, 1.06, .94), offset: .32, easing: 'cubic-bezier(.4, 0, .6, 1)' },
-      { transform: t(from.x + dx * .5, low + D * .15, dir * 5), offset: .46, easing: 'cubic-bezier(.4, 0, .6, 1)' },
-      { transform: t(to.x - dx * .04, low, dir * 2, 1.04, .96), offset: .58, easing: 'cubic-bezier(.2, .65, .35, 1)' },
-      { transform: t(to.x, to.y - D * .35, -dir * 1.5, .97, 1.04), offset: .78, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      { transform: t(to.x, to.y + D * .08, dir * .5), offset: .89, easing: 'cubic-bezier(.45, 0, .55, 1)' },
-      { transform: t(to.x, to.y) },
-    ], { duration: 1250, fill: 'both' });
+    const frames = [];
+    for (let k = 0, n = 48; k <= n; k++) {
+      const s = k / n, u = ease(s), p = at(u);
+      // Lean into the sideways sweep, and stretch a little along the drop
+      // and the climb.
+      const sweep = Math.sin(Math.PI * Math.min(1, Math.max(0, u)));
+      const stretch = 1 + .05 * Math.sin(Math.PI * Math.min(1, Math.max(0, u)) * 2) ** 2;
+      frames.push({
+        transform: `translate(${px(p.x)}, ${px(p.y)}) rotate(${(dir * 5 * sweep).toFixed(2)}deg) scale(${(2 - stretch).toFixed(3)}, ${stretch.toFixed(3)})`,
+        offset: s,
+      });
+    }
+    const flight = dock.animate(frames, { duration: 1250, fill: 'both' });
 
     // Merge: the pill swallows the dot (their circles coincide at the top),
     // then, as one piece, shrinks into a small capsule for the fall and

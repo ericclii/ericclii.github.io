@@ -123,10 +123,11 @@ body {
 
 .md .rule { margin: 2.4em 0; color: var(--mark); letter-spacing: .1em; }
 
-/* [text](target): the visible target comes from data-target, kept short. */
-.md a { color: var(--strong); text-decoration: none; transition: color .2s ease; }
-.md a::before { content: "["; content: "[" / ""; color: var(--mark); }
-.md a::after {
+/* [text](target): the visible target comes from data-target, kept short.
+   .link is the same look for text that isn't clickable. */
+.md :is(a, .link) { color: var(--strong); text-decoration: none; transition: color .2s ease; }
+.md :is(a, .link)::before { content: "["; content: "[" / ""; color: var(--mark); }
+.md :is(a, .link)::after {
   content: "](" attr(data-target) ")";
   content: "](" attr(data-target) ")" / "";
   color: var(--mark);
